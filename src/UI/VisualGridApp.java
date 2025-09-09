@@ -1046,18 +1046,22 @@ public class VisualGridApp extends Application {
         // Limpia el heatmap previo
         g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
 
-        // Rango de colores (ajústalo si quieres)
+        // Rango de colores
         final double MIN_DBM = -100.0; // azul
         final double MAX_DBM =  -30.0; // rojo
 
-        // Si estás mostrando SNR en la UI
+        // SNR en UI
         final boolean showSnr = chkShowSnr != null && chkShowSnr.isSelected();
         final double noiseDbm = env.noiseFloorDbm();
 
-        // Recorremos celdas del grid (en unidades "metro" de tu mundo)
+        // Parámetros de directividad (ajústalos si quieres)
+        final double OUT_OF_BEAM_ATTEN_DB = 25.0;  // fuera del haz restamos 25 dB
+        final double MAIN_LOBE_EXTRA_DB;           // ganancia principal si tu Sensor la define
+
+        // Recorremos celdas del grid
         for (int y = 0; y < GRID_MAX_Y; y++) {
             for (int x = 0; x < GRID_MAX_X; x++) {
-                // Centro de la celda (en coordenadas de tu grid)
+                // Centro de la celda (en coordenadas de grid)
                 double cx = x + 0.5;
                 double cy = y + 0.5;
 
@@ -1067,29 +1071,53 @@ public class VisualGridApp extends Application {
                 for (Sensor s : config.getSensores()) {
                     double dx = cx - s.getX();
                     double dy = cy - s.getY();
-                    double d  = Math.hypot(dx, dy);      // distancia en "m"
+                    double d  = Math.hypot(dx, dy);
+                    if (d < 1e-6) d = 1e-3; // evita log(0)
 
-                    if (d < 1e-6) d = 1e-3;             // evita log(0)
+                    // === Ganancia por directividad ===
+                    double gainDb = 0.0;
 
-                    // Pérdida libre
+                    // intenta usar la ganancia de TX del sensor si existe (por si añadiste getTxGainDb)
+                    double txGainDb = 0.0;
+                    try { txGainDb = s.getTxGainDb(); } catch (Throwable ignore) { /* campo opcional */ }
+
+                    Sensor.AntennaType at = s.getAntennaType();
+                    boolean isDirectional =
+                            (at == Sensor.AntennaType.DIRECTIVE) ||
+                            (at == Sensor.AntennaType.DIRECTIONAL);
+
+                    if (isDirectional) {
+                        double angleToCell = deg0to360(Math.toDegrees(Math.atan2(dy, dx)));
+                        boolean inside = isInsideQuadrant(angleToCell, s.getDirectiveQuadrant());
+
+                        if (inside) {
+                            // dentro del haz: añade la ganancia "de antena" si la usas
+                            gainDb += txGainDb; // si no usas ganancia, esto será 0
+                        } else {
+                            // fuera del haz: penalización fuerte
+                            gainDb -= OUT_OF_BEAM_ATTEN_DB;
+                        }
+                    }
+                    // (si es OMNI/ISOTROPIC, gainDb = 0)
+
+                    // === Pérdidas ===
                     double fspl = Propagation.fsplLossDb(d, env.getFreqMHz());
 
-                    // Pérdida por paredes a LO-S (línea recta sensor→celda)
+                    // Pérdida por paredes (línea recta sensor→celda, en coords de grid)
                     double wloss = Propagation.wallLossAlongLine(
                             env.getWalls(), env.getFreqMHz(),
                             s.getX(), s.getY(), cx, cy);
 
-                    // Atenuación lineal del medio
+                    // Atenuación del medio
                     double alphaLoss = env.getAlphaDbPerMeter() * d;
 
-                    // Rx con 0 dB de ganancia en el “receptor ficticio”
-                    double prxDbm = s.getTxDbm() - fspl - alphaLoss - wloss;
+                    // Potencia recibida en la celda por este sensor
+                    double prxDbm = s.getTxDbm() + gainDb - fspl - alphaLoss - wloss;
 
                     // Suma en mW
                     sumMw += Math.pow(10.0, prxDbm / 10.0);
                 }
 
-                // Si no hay sensores, pinta transparente
                 if (sumMw <= 0) continue;
 
                 double prxTotDbm = 10.0 * Math.log10(sumMw);
@@ -1098,7 +1126,6 @@ public class VisualGridApp extends Application {
                 // Normaliza a [0,1]
                 double t;
                 if (showSnr) {
-                    // Rango típico SNR para colores (ajustable)
                     double minS = 0.0, maxS = 60.0;
                     t = (valueForColor - minS) / (maxS - minS);
                 } else {
@@ -1106,20 +1133,16 @@ public class VisualGridApp extends Application {
                 }
                 t = Math.max(0.0, Math.min(1.0, t));
 
-                // Mapea a color (azul→cian→verde→amarillo→rojo)
-                Color c = lerpTurbo(t); // o usa lerpJet(t) de abajo si prefieres
-
+                // Color
+                Color c = lerpTurbo(t);
                 g.setFill(c);
 
-                // --- Pintado respetando márgenes y eje Y invertido ---
-                double left   = px(x);        // x → pixels
+                // Pintado respetando márgenes y eje Y invertido
+                double left   = px(x);
                 double right  = px(x + 1);
-                double top    = py(y + 1);    // ¡OJO!: py invierte el eje
+                double top    = py(y + 1);
                 double bottom = py(y);
-                double w = right - left;
-                double h = bottom - top;
-
-                g.fillRect(left, top, w, h);
+                g.fillRect(left, top, right - left, bottom - top);
             }
         }
     }
@@ -1319,7 +1342,22 @@ public class VisualGridApp extends Application {
         }
     }
 
-    
+    /* === Helpers para los ángulos y cuadrantes === */
+    private static double deg0to360(double a) {
+        a = a % 360.0;
+        if (a < 0) a += 360.0;
+        return a;
+    }
+
+    /** Devuelve true si el ángulo (0–360) está dentro del cuadrante Q1..Q4. */
+    private static boolean isInsideQuadrant(double angleDeg, Sensor.Quadrant q) {
+        return switch (q) {
+            case Q1 -> (angleDeg >=   0 && angleDeg <  90);
+            case Q2 -> (angleDeg >=  90 && angleDeg < 180);
+            case Q3 -> (angleDeg >= 180 && angleDeg < 270);
+            case Q4 -> (angleDeg >= 270 && angleDeg < 360);
+        };
+    }
 
     
     
