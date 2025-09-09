@@ -1,34 +1,39 @@
 package core;
 
-/** Utilidades de propagación en espacio libre (FSPL) basadas en Friis. */
+import java.awt.geom.Line2D;
+import java.util.List;
+
 public final class Propagation {
 
-    private Propagation() {}
+    private Propagation(){}
 
-    /**
-     * FSPL (dB) en función de distancia y frecuencia.
-     * Fórmula clásica (unidades): d en km, f en MHz
-     *   Lp(dB) = 20*log10(d_km) + 20*log10(f_MHz) + 32.44
-     */
-    public static double fsplLossDb(double distanceMeters, double freqMHz) {
-        if (distanceMeters <= 0) return 0.0; // evita -Inf en log10(0)
-        double dKm = distanceMeters / 1000.0;
-        return 20.0 * Math.log10(dKm) + 20.0 * Math.log10(freqMHz) + 32.44;
+    public static boolean segmentsIntersect(double ax, double ay, double bx, double by,
+                                            double cx, double cy, double dx, double dy){
+        return new Line2D.Double(ax,ay,bx,by).intersectsLine(cx,cy,dx,dy);
     }
 
-    /**
-     * Potencia recibida (dBm) aplicando Friis: Pr = Pt + Gt + Gr - Lp
-     * Usa Gt=0 si no modelas aún la ganancia de transmisión del sensor.
-     */
-    public static double receivedPowerDbm(double ptDbm, double gtDb, double grDb,
-                                          double fsplLossDb) {
-        return ptDbm + gtDb + grDb - fsplLossDb;
+    /** Suma de pérdidas por paredes cruzadas entre A(x1,y1) y B(x2,y2). */
+    public static double wallLossAlongLine(List<Wall> walls, double freqMHz,
+                                           double x1, double y1, double x2, double y2){
+        if (walls == null || walls.isEmpty()) return 0.0;
+        double total = 0.0;
+        for (Wall w : walls){
+            if (segmentsIntersect(x1,y1,x2,y2, w.getX1(),w.getY1(),w.getX2(),w.getY2())){
+                total += w.lossDb(freqMHz);
+            }
+        }
+        return total;
     }
 
-    /** Distancia euclídea en metros entre dos puntos (x,y) en la rejilla. */
-    public static double euclideanMeters(int x1, int y1, int x2, int y2) {
-        int dx = x2 - x1;
-        int dy = y2 - y1;
-        return Math.sqrt(dx * dx + dy * dy);
+    /** FSPL en dB (distancia en metros, frecuencia en MHz). */
+    public static double fsplLossDb(double distanceMeters, double freqMHz){
+        if (distanceMeters <= 0) return 0.0;
+        // 32.45 + 20log10(fMHz) + 20log10(d_km)
+        double d_km = distanceMeters / 1000.0;
+        return 32.45 + 20.0 * Math.log10(freqMHz) + 20.0 * Math.log10(d_km);
     }
+
+    public static double dbmToMilliwatt(double dbm){ return Math.pow(10.0, dbm/10.0); }
+    public static double milliwattToDbm(double mw){ return 10.0 * Math.log10(Math.max(mw,1e-15)); }
+    public static double snrDb(double prxDbm, double noiseDbm){ return prxDbm - noiseDbm; }
 }
