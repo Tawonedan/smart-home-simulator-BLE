@@ -126,16 +126,35 @@ public class Environment {
     	    new Wall(10, 0, 10, 12, BRICK, 10)
     	);
 
-    	public static final List<Wall> WALLS_TEMPLATE_HOUSE_MAT = java.util.Arrays.asList(
-    	    // Pasillo horizontal
-    	    new Wall(0, 5, 20, 5, DRYWALL, 10),
-    	    new Wall(0, 7, 20, 7, DRYWALL, 10),
-    	    new Wall(0, 5, 0, 7, METAL_DOOR, 5),     // puerta metálica
-    	    // Pasillo vertical
-    	    new Wall(20, 5, 20, 18, BRICK, 12),
-    	    new Wall(22, 5, 22, 18, BRICK, 12),
-    	    new Wall(20, 18, 22, 18, GLASS, 8)
+    	// En Environment (o donde declares tus plantillas)
+    	public static final java.util.List<Wall> WALLS_TEMPLATE_DRAWN = java.util.Arrays.asList(
+    	    // tramo horizontal izq (y = 10, x: 0→9)
+    	    new Wall(0, 10, 9, 10, BRICK , 10),
+
+    	    // vertical izq abajo (x = 9, y: 0→7)
+    	    new Wall(9, 0, 9, 7, BRICK , 10),
+
+    	    // vertical izq arriba (x = 9, y: 11→24)
+    	    new Wall(9, 11, 9, 24, BRICK , 10),
+
+    	    // vertical central (x = 17, y: 0→16)
+    	    new Wall(17, 0, 17, 16, BRICK , 10),
+
+    	    // horizontal superior central (y = 16, x: 17→26)
+    	    new Wall(17, 16, 26, 16, BRICK , 10),
+
+    	    // vertical derecha corta (x = 27, y: 24→18)
+    	    new Wall(27, 24, 27, 18, BRICK , 10),
+    	    
+    	    new Wall(0, 0, 0, 24, CONCRETE, 15),  // hormigón 15 cm
+    	    
+    	    new Wall(40, 0, 40, 24, CONCRETE, 15),
+    	    
+    	    new Wall(0, 24, 40, 24, BRICK, 12),
+    	    
+    	    new Wall(0, 0, 40, 0, BRICK, 12)
     	);
+
     
     
         

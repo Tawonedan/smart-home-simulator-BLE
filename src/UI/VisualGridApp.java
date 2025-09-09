@@ -239,6 +239,14 @@ public class VisualGridApp extends Application {
             heatmapView.setVisible(newVis);
             if (newVis) drawHeatmap();
         });
+        
+        Button btnClearHeatmap = new Button("Quitar Heatmap");
+        btnClearHeatmap.setOnAction(e -> {
+            heatmapView.setVisible(false);
+            GraphicsContext g = gridCanvas.getGraphicsContext2D();
+            g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
+        });
+
 
         // CheckBox Mostrar SNR
         chkShowSnr = new CheckBox("Mostrar SNR");
@@ -287,7 +295,7 @@ public class VisualGridApp extends Application {
             if (heatmapView.isVisible()) drawHeatmap();
         });
         tplHouse.setOnAction(e -> {
-            env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT);
+            env.setWalls(Environment.WALLS_TEMPLATE_DRAWN);
             drawWallsInLayer();
             if (heatmapView.isVisible()) drawHeatmap();
         });
@@ -313,7 +321,7 @@ public class VisualGridApp extends Application {
         // Montaje del lateral
         side.getChildren().addAll(
             lblFreq, cbFreq,
-            btnHeatmap,
+            btnHeatmap,btnClearHeatmap,
             chkShowSnr,
             lblBW, new HBox(6, tfBW, btnBW),
             lblNF, new HBox(6, tfNF, btnNF),
@@ -370,7 +378,7 @@ public class VisualGridApp extends Application {
         btnTpl2.setOnAction(e -> { env.setWalls(Environment.WALLS_TEMPLATE_2_MAT); walls = new ArrayList<>(env.getWalls()); repaintAll(); });
 
         Button btnTplH = new Button("Tpl House L");
-        btnTplH.setOnAction(e -> { env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT); walls = new ArrayList<>(env.getWalls()); repaintAll(); });
+        btnTplH.setOnAction(e -> { env.setWalls(Environment.WALLS_TEMPLATE_DRAWN); walls = new ArrayList<>(env.getWalls()); repaintAll(); });
 
         // Botones legacy (rayos/ondas/params)
         Button btnSimular = new Button("Rayos (legacy)");
