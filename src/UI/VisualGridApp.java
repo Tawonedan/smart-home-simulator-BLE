@@ -5,6 +5,7 @@ import core.Hub;
 import core.Obstacle;
 import core.RayMetrics;
 import core.Sensor;
+import core.WaveContribution;
 import env.Environment;
 
 import javafx.util.Duration;
@@ -80,6 +81,8 @@ public class VisualGridApp extends Application {
     private final Configuracion config = new Configuracion();
     private final AtomicInteger seq = new AtomicInteger(1);
     private final Map<Sensor, NodeBundle> nodos = new HashMap<>();
+    private final List<WaveContribution> waveField = new ArrayList<>();
+
 
     // Lista de métricas de rayos (una por rayo que llegue a Hub o termine)
     private final java.util.List<RayMetrics> rayMetricsList = new java.util.ArrayList<>();
@@ -89,6 +92,16 @@ public class VisualGridApp extends Application {
     private Group hubNode = null;
     private Rectangle hubBox;
     private Tooltip hubTooltip;
+    
+ // ===== Parámetros globales de las ondas =====
+    private static final double WAVE_INITIAL_RADIUS = 5;       // radio inicial (px)
+    private static final double WAVE_MAX_RADIUS = 300;         // radio máximo (px)
+    private static final double WAVE_DURATION_SEC = 10.0;       // duración de expansión (s)
+    private static final double WAVE_INITIAL_OPACITY = 0.6;    // opacidad inicial
+    private static final double WAVE_FINAL_OPACITY = 0.0;      // opacidad final
+    private static final double WAVE_INTERVAL_MS = 250;        // tiempo entre ondas nuevas (ms)
+
+    
 
     // =============================================================================
     // Sección: Enumeraciones
@@ -123,6 +136,7 @@ public class VisualGridApp extends Application {
         pintarHub(root, hub);
 
         // Paredes
+        config.setObstaculos(Environment.WALLS_TEMPLATE_1);
         drawObstacles(root);
 
         // === Botón de simulación de rayos ===
@@ -561,203 +575,244 @@ public class VisualGridApp extends Application {
      */
 	RayMetrics m = new RayMetrics();
     
-    private void startRay(Pane root, Sensor s, double angleRad, Color color) {
-    	
-    	
-    	
-    	rayMetricsList.add(metrics);
+	// === startRay con ondas (fase 1: amplitud + fase) + métricas al impactar el HUB ===
+	private void startRay(Pane root, Sensor s, double angleRad, Color color) {
+	    final double MAX_DISTANCE = 50.0;   // metros/celdas
+	    final double[] traveled = {0.0};    // distancia acumulada a lo largo del rayo
+
+	    // Línea inicial
+	    final Line[] line = { new Line(px(s.getX()), py(s.getY()), px(s.getX()), py(s.getY())) };
+	    line[0].setStroke(color);
+	    line[0].setStrokeWidth(2.0);
+	    line[0].getProperties().put("ray", true);
+	    root.getChildren().add(line[0]);
+
+	    // Estado
+	    final double[] currX = { s.getX() };
+	    final double[] currY = { s.getY() };
+
+	    final double[] dirX = { Math.cos(angleRad) };
+	    final double[] dirY = { Math.sin(angleRad) };
+
+	    final int[] bounces = { 0 };
+	    final double STEP = 0.5;    // metros por tick (dirX/dirY son unitarios)
+	    final double EPS  = 1e-3;
+
+	    // === Parámetros de onda (para registrar contribuciones, si lo usas) ===
+	    final double fMHz   = env.Environment.WIFI_24_GHZ_MHZ;   // MHz
+	    final double freqHz = fMHz * 1e6;                        // Hz
+	    final double c      = 3e8;                               // m/s
+	    final double lambda = c / freqHz;                        // m
+
+	    final double txDbm = s.getTxDbm();
+	    final double txMw  = Math.pow(10, txDbm / 10.0);         // mW
+	    final double baseAmplitude = Math.sqrt(txMw);            // ~ √P
+
+	    Timeline tl = new Timeline();
+	    KeyFrame frame = new KeyFrame(Duration.millis(RAY_STEP_MS), ev -> {
+	        // Próxima posición tentativa
+	        double nextX = currX[0] + dirX[0] * STEP;
+	        double nextY = currY[0] + dirY[0] * STEP;
+
+	        // === (Opcional) registrar contribución de onda en el punto actual ===
+	        traveled[0] += STEP; // sumamos el STEP **al inicio del tick**
+	        double phase = 2 * Math.PI * (traveled[0] / lambda);
+	        double amplitude = baseAmplitude / (1.0 + traveled[0]); // atenuación simple
+	        WaveContribution wc = new WaveContribution(currX[0], currY[0], amplitude, phase);
+	        waveField.add(wc);
+
+	        // === 1) Colisión con obstáculos: elegir el primer impacto dentro del tramo ===
+	        double[] bestHit = null;
+	        Obstacle bestObs = null;
+	        double bestT = Double.POSITIVE_INFINITY;
+
+	        for (Obstacle o : config.getObstaculos()) {
+	            double[] h = segIntersectionD(
+	                currX[0], currY[0], nextX, nextY,
+	                o.getX1(), o.getY1(), o.getX2(), o.getY2()
+	            );
+	            if (h == null) continue;
+
+	            double t = h[2];
+	            if (t < 1e-6 || t > 1.0) continue; // ignorar origen y fuera del segmento
+
+	            if (t < bestT) { bestT = t; bestHit = h; bestObs = o; }
+	        }
+
+	        if (bestHit != null) {
+	            // Cierra tramo en el impacto
+	            double hx = bestHit[0], hy = bestHit[1];
+	            line[0].setEndX(px(hx));
+	            line[0].setEndY(py(hy));
+
+	            // Nuevo tramo desde el impacto
+	            Line newLine = new Line(px(hx), py(hy), px(hx), py(hy));
+	            newLine.setStroke(line[0].getStroke());
+	            newLine.setStrokeWidth(line[0].getStrokeWidth());
+	            newLine.getProperties().put("ray", true);
+	            root.getChildren().add(newLine);
+	            line[0] = newLine;
+
+	            // Reflexión (ley del espejo con normal unitaria de la pared)
+	            double wx = bestObs.getX2() - bestObs.getX1();
+	            double wy = bestObs.getY2() - bestObs.getY1();
+	            double wl = Math.hypot(wx, wy);
+	            double nx = -wy / wl, ny =  wx / wl;
+
+	            double dot = dirX[0]*nx + dirY[0]*ny;
+	            double rx = dirX[0] - 2.0 * dot * nx;
+	            double ry = dirY[0] - 2.0 * dot * ny;
+	            double rl = Math.hypot(rx, ry);
+	            dirX[0] = rx / rl;
+	            dirY[0] = ry / rl;
+
+	            // Salir mínimamente de la pared para no “re-chocar”
+	            currX[0] = hx + dirX[0] * EPS;
+	            currY[0] = hy + dirY[0] * EPS;
+
+	            // Penalización por rebote
+	            bounces[0]++;
+	            if (bounces[0] >= MAX_BOUNCES) { tl.stop(); return; }
+	            return; // fin de tick tras rebote
+	        }
+
+	        // === 2) Detección de HUB en el tramo (curr -> next) con tHub y métricas ===
+	        if (config.hasHub()) {
+	            Hub h = config.getHub();
+
+	            // Vector del tramo actual
+	            double segDx = nextX - currX[0];
+	            double segDy = nextY - currY[0];
+	            double segLen = Math.hypot(segDx, segDy); // ~ STEP
+
+	            // Proyección del HUB sobre el segmento para obtener tHub en [0,1]
+	            double denom = segDx*segDx + segDy*segDy;
+	            double tHub  = (denom <= 1e-12) ? 0.0
+	                           : ((h.getX() - currX[0]) * segDx + (h.getY() - currY[0]) * segDy) / denom;
+
+	            // Clamp numérico
+	            if (tHub < 0.0) tHub = 0.0;
+	            if (tHub > 1.0) tHub = 1.0;
+
+	            // Distancia perpendicular del HUB al segmento
+	            double closestX = currX[0] + tHub * segDx;
+	            double closestY = currY[0] + tHub * segDy;
+	            double distPerp = Math.hypot(h.getX() - closestX, h.getY() - closestY);
+
+	            final double HUB_HIT_THRESHOLD = 0.30; // en celdas/metros
+	            if (distPerp <= HUB_HIT_THRESHOLD) {
+	                // Distancia acumulada real hasta el HUB dentro de este tick:
+	                // traveled[] ya sumó STEP al principio del tick.
+	                // Distancia total = (acumulado previo) + (tHub * segLen)
+	                // Acumulado previo = traveled - segLen
+	                double dMeters = (traveled[0] - segLen) + tHub * segLen;
+
+	                // Fijar visualmente en el HUB
+	                line[0].setEndX(px(h.getX()));
+	                line[0].setEndY(py(h.getY()));
+
+	                // Potencia Tx efectiva con penalización por rebotes
+	                double txEffDbm = s.getTxDbm() - 3.0 * bounces[0];
+
+	                // FSPL / Rx
+	                double lossDb = core.Propagation.fsplLossDb(dMeters, fMHz);
+	                double prxDbm = core.Propagation.receivedPowerDbm(txEffDbm, 0.0, h.getGrDb(), lossDb);
+
+	                // ---- Construir y guardar métricas del rayo ----
+	                RayMetrics m = new RayMetrics();
+	                m.setDistanceTraveled(dMeters);
+	                m.setNumBounces(bounces[0]);
+	                m.setTxDbm(txEffDbm);
+	                m.setFsplDb(lossDb);
+	                m.setPrxDbm(prxDbm);
+
+	                double noiseFloor = -90.0;
+	                double snr = prxDbm - noiseFloor;
+	                m.setSnrDb(snr);
+
+	                double sensitivity = -82.0;
+	                m.setLinkMargin(prxDbm - sensitivity);
+
+	                double rssi = Math.max(-100, Math.min(0, prxDbm));
+	                m.setRssi(rssi);
+
+	                double ber = 0.5 * Math.exp(-snr / 10.0); // aproximación BPSK
+	                m.setBer(ber);
+
+	                double bandwidth = 20e6; // 20 MHz
+	                double capacity = bandwidth * (Math.log(1 + Math.pow(10, snr / 10.0)) / Math.log(2));
+	                m.setChannelCapacityMbps(capacity / 1e6);
+
+	                rayMetricsList.add(m);
+
+	                // Tooltip del HUB
+	                if (hubTooltip != null) {
+	                    hubTooltip.setText(String.format(
+	                        "Hub %s (%d,%d)\nSensor: %s\nDist: %.2f m\nFSPL: %.1f dB\nRx: %.1f dBm",
+	                        h.getId(), h.getX(), h.getY(),
+	                        s.getNombre(), dMeters, lossDb, prxDbm
+	                    ));
+	                    showHubTooltipOverHub();
+	                }
+
+	                anyRayHitThisRun = true;
+	                tl.stop();
+	                return;
+	            }
+	        }
+
+	        // === 3) Avance normal (sin choque) ===
+	        currX[0] = nextX;
+	        currY[0] = nextY;
+
+	        line[0].setEndX(px(currX[0]));
+	        line[0].setEndY(py(currY[0]));
+
+	        if (traveled[0] >= MAX_DISTANCE) {
+	            tl.stop();
+	        }
+	    });
+
+	    tl.getKeyFrames().add(frame);
+	    tl.setCycleCount(Animation.INDEFINITE);
+	    tl.play();
+	}
+
     
+    // ========= Esta segunda parte del codigo se encarga de las ondas circulares ==================
+	/**
+	 * Lanza frentes de onda circulares desde un sensor.
+	 * Controlado por parámetros configurables.
+	 */
+	private void launchWavefronts(Pane root, Sensor s) {
+	    Timeline timeline = new Timeline(new KeyFrame(Duration.millis(WAVE_INTERVAL_MS), ev -> {
+	        Circle wave = new Circle(px(s.getX()), py(s.getY()), WAVE_INITIAL_RADIUS);
+	        wave.setStroke(Color.DODGERBLUE);
+	        wave.setStrokeWidth(1.5);
+	        wave.setFill(Color.TRANSPARENT);
 
-        final double MAX_DISTANCE = 300.0;  // máximo recorrido del rayo (celdas/metros)
-        final double[] traveled = {0.0};
+	        // Marca como "onda"
+	        wave.getProperties().put("wave", true);
+	        root.getChildren().add(wave);
 
-        // === Línea inicial del rayo ===
-        final Line[] line = { new Line(px(s.getX()), py(s.getY()), px(s.getX()), py(s.getY())) };
-        line[0].setStroke(color);
-        line[0].setStrokeWidth(2.0);
-        line[0].getProperties().put("ray", true);
-        root.getChildren().add(line[0]);
+	        // Animación de expansión y desvanecimiento
+	        Timeline anim = new Timeline(
+	            new KeyFrame(Duration.seconds(0),
+	                new javafx.animation.KeyValue(wave.radiusProperty(), WAVE_INITIAL_RADIUS),
+	                new javafx.animation.KeyValue(wave.opacityProperty(), WAVE_INITIAL_OPACITY)
+	            ),
+	            new KeyFrame(Duration.seconds(WAVE_DURATION_SEC),
+	                new javafx.animation.KeyValue(wave.radiusProperty(), WAVE_MAX_RADIUS),
+	                new javafx.animation.KeyValue(wave.opacityProperty(), WAVE_FINAL_OPACITY)
+	            )
+	        );
+	        anim.setOnFinished(e -> root.getChildren().remove(wave));
+	        anim.play();
+	    }));
+	    timeline.setCycleCount(Animation.INDEFINITE);
+	    timeline.play();
+	}
 
-        // === Estado continuo (en coordenadas grid double) ===
-        final double[] currX = { s.getX() };
-        final double[] currY = { s.getY() };
-
-        // Vector inicial según el ángulo
-        final double[] dirX = { Math.cos(angleRad) };
-        final double[] dirY = { Math.sin(angleRad) };
-
-        final int[] bounces = { 0 };
-        final double STEP = 0.5;    // paso por tick (ajustable)
-        final double EPS  = 1e-3;   // pequeño desplazamiento tras rebote
-
-        final Timeline tl = new Timeline();
-
-        KeyFrame frame = new KeyFrame(Duration.millis(RAY_STEP_MS), ev -> {
-            // Próxima posición tentativa
-            double nextX = currX[0] + dirX[0] * STEP;
-            double nextY = currY[0] + dirY[0] * STEP;
-
-            // Buscar intersección con obstáculos
-            double[] bestHit = null;
-            Obstacle bestObs = null;
-            double bestT = Double.POSITIVE_INFINITY;
-
-            for (Obstacle o : config.getObstaculos()) {
-                double[] h = segIntersectionD(
-                        currX[0], currY[0], nextX, nextY,
-                        o.getX1(), o.getY1(), o.getX2(), o.getY2());
-                if (h == null) continue;
-
-                double t = h[2]; // parámetro del segmento
-                if (t < 1e-6 || t > 1.0) continue;
-
-                if (t < bestT) { bestT = t; bestHit = h; bestObs = o; }
-            }
-
-            // === Si choca con obstáculo ===
-            if (bestHit != null) {
-                double hx = bestHit[0], hy = bestHit[1];
-                line[0].setEndX(px(hx));
-                line[0].setEndY(py(hy));
-
-                // Crear nuevo segmento desde el punto de impacto
-                Line newLine = new Line(px(hx), py(hy), px(hx), py(hy));
-                newLine.setStroke(line[0].getStroke());
-                newLine.setStrokeWidth(line[0].getStrokeWidth());
-                newLine.getProperties().put("ray", true);
-                root.getChildren().add(newLine);
-                line[0] = newLine;
-
-                // Reflexión respecto a la pared
-                double wx = bestObs.getX2() - bestObs.getX1();
-                double wy = bestObs.getY2() - bestObs.getY1();
-                double wl = Math.hypot(wx, wy);
-                double nx = -wy / wl, ny = wx / wl; // normal unitaria
-
-                double dot = dirX[0]*nx + dirY[0]*ny;
-                double rx = dirX[0] - 2*dot*nx;
-                double ry = dirY[0] - 2*dot*ny;
-                double rl = Math.hypot(rx, ry);
-                dirX[0] = rx/rl;
-                dirY[0] = ry/rl;
-
-                // Avanza un poquito fuera de la pared
-                currX[0] = hx + dirX[0]*EPS;
-                currY[0] = hy + dirY[0]*EPS;
-
-                bounces[0]++;
-                if (bounces[0] >= MAX_BOUNCES) { tl.stop(); return; }
-                return;
-            }
-
-            // === Impacto con el Hub ===
-            if (config.hasHub()) {
-                Hub h = config.getHub();
-                double dist = distPointToSegment(h.getX(), h.getY(), currX[0], currY[0], nextX, nextY);
-                if (dist < 0.25) { // umbral
-                    line[0].setEndX(px(h.getX()));
-                    line[0].setEndY(py(h.getY()));
-
-                    // FSPL y Rx
-                    double fMHz     = env.Environment.WIFI_24_GHZ_MHZ;
-                    double lossDb   = core.Propagation.fsplLossDb(traveled[0], fMHz);
-
-                    double txEffDbm = s.getTxDbm() - 3.0 * bounces[0];  // Tx efectivo con rebotes
-                    double prxDbm   = core.Propagation.receivedPowerDbm(txEffDbm, 0.0, h.getGrDb(), lossDb);
-
-                    // === Construir métricas ===
-                    RayMetrics m = new RayMetrics();
-                    m.setDistanceTraveled(traveled[0]);  // acumulado
-                    m.setNumBounces(bounces[0]);
-                    m.setTxDbm(txEffDbm);
-                    m.setFsplDb(lossDb);
-                    m.setPrxDbm(prxDbm);
-
-                    // Cálculos adicionales
-                    double noiseFloor = -90.0;
-                    m.setSnrDb(prxDbm - noiseFloor);
-
-                    double sensitivity = -82.0;
-                    m.setLinkMargin(prxDbm - sensitivity);
-
-                    double rssi = Math.max(-100, Math.min(0, prxDbm));
-                    m.setRssi(rssi);
-
-                    double ber = 0.5 * Math.exp(-m.getSnrDb() / 10.0);
-                    m.setBer(ber);
-
-                    double bandwidth = 20e6; // 20 MHz
-                    double capacity = bandwidth * (Math.log(1 + Math.pow(10, m.getSnrDb() / 10)) / Math.log(2));
-                    m.setChannelCapacityMbps(capacity / 1e6);
-
-                    // Guardar en la lista global
-                    rayMetricsList.add(m);
-
-                    // Tooltip
-                    if (hubTooltip != null) {
-                        hubTooltip.setText(String.format(
-                            "Hub %s (%d,%d)\nSensor: %s\nDist: %.2f m\nFSPL: %.1f dB\nRx: %.1f dBm",
-                            h.getId(), h.getX(), h.getY(),
-                            s.getNombre(), traveled[0], lossDb, prxDbm));
-                        showHubTooltipOverHub();
-                    }
-
-                    anyRayHitThisRun = true;
-                    tl.stop();
-                    return;
-                }
-            }
-
-
-            // === Avance normal ===
-            currX[0] = nextX;
-            currY[0] = nextY;
-            traveled[0] += STEP;
-
-            line[0].setEndX(px(currX[0]));
-            line[0].setEndY(py(currY[0]));
-
-            if (traveled[0] >= MAX_DISTANCE) {
-                tl.stop();
-            }
-        });
-
-        tl.getKeyFrames().add(frame);
-        tl.setCycleCount(Animation.INDEFINITE);
-        tl.play();
-    }
-    
-    
- // ===== Frentes de onda (circular wavefronts) =====
-    private void launchWavefronts(Pane root, Sensor s) {
-        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(200), ev -> {
-            Circle wave = new Circle(px(s.getX()), py(s.getY()), 5);
-            wave.setStroke(Color.DODGERBLUE);
-            wave.setStrokeWidth(1.5);
-            wave.setFill(Color.TRANSPARENT);
-
-            // Propiedades visuales de animación
-            wave.setOpacity(0.6);  // opacidad inicial
-            wave.getProperties().put("wave", true);
-            root.getChildren().add(wave);
-
-            // Animar expansión y desvanecimiento
-            Timeline anim = new Timeline(
-                new KeyFrame(Duration.seconds(0),
-                    new javafx.animation.KeyValue(wave.radiusProperty(), 5),
-                    new javafx.animation.KeyValue(wave.opacityProperty(), 0.6)
-                ),
-                new KeyFrame(Duration.seconds(3), // duración de la onda
-                    new javafx.animation.KeyValue(wave.radiusProperty(), 200), // radio máximo
-                    new javafx.animation.KeyValue(wave.opacityProperty(), 0.0) // se desvanece
-                )
-            );
-            anim.setOnFinished(e -> root.getChildren().remove(wave));
-            anim.play();
-        }));
-        timeline.setCycleCount(Animation.INDEFINITE);
-        timeline.play();
-    }
 
     
     
@@ -868,4 +923,41 @@ public class VisualGridApp extends Application {
         double projx = x1 + t*vx, projy = y1 + t*vy;
         return Math.hypot(px - projx, py - projy);
     }
+    
+    private void saveRayMetrics(Sensor s, double endX, double endY, double distance, int bounces, double txDbm) {
+        if (!config.hasHub()) return;
+
+        Hub h = config.getHub();
+        double fMHz   = env.Environment.WIFI_24_GHZ_MHZ;
+        double lossDb = core.Propagation.fsplLossDb(distance, fMHz);
+        double prxDbm = core.Propagation.receivedPowerDbm(txDbm, 0.0, h.getGrDb(), lossDb);
+
+        RayMetrics m = new RayMetrics();
+        m.setDistanceTraveled(distance);
+        m.setNumBounces(bounces);
+        m.setTxDbm(txDbm);
+        m.setFsplDb(lossDb);
+        m.setPrxDbm(prxDbm);
+
+        double noiseFloor = -90.0;
+        m.setSnrDb(prxDbm - noiseFloor);
+
+        double sensitivity = -82.0;
+        m.setLinkMargin(prxDbm - sensitivity);
+
+        double rssi = Math.max(-100, Math.min(0, prxDbm));
+        m.setRssi(rssi);
+
+        double ber = 0.5 * Math.exp(-m.getSnrDb() / 10.0);
+        m.setBer(ber);
+
+        double bandwidth = 20e6; // 20 MHz
+        double capacity = bandwidth * (Math.log(1 + Math.pow(10, m.getSnrDb() / 10)) / Math.log(2));
+        m.setChannelCapacityMbps(capacity / 1e6);
+
+        rayMetricsList.add(m);
+    }
+
+    
+    
 }
