@@ -123,10 +123,7 @@ public class Environment {
     	);
 
     	public static final List<Wall> WALLS_TEMPLATE_2_MAT = java.util.Arrays.asList(
-    	    new Wall(5, 0, 5, 12, BRICK, 10),
-    	    new Wall(15, 0, 15, 12, BRICK, 10),
-    	    new Wall(5, 0, 15, 0, DRYWALL, 10),
-    	    new Wall(5, 12, 15, 12, DRYWALL, 10)
+    	    new Wall(10, 0, 10, 12, BRICK, 10)
     	);
 
     	public static final List<Wall> WALLS_TEMPLATE_HOUSE_MAT = java.util.Arrays.asList(

@@ -24,7 +24,7 @@ public class Sensor extends Device {
     public Sensor(String id, String nombre, int x, int y, double value) {
         super(id, nombre, x, y);
         this.value = value;
-        this.TxDbm = 30.0;
+        this.TxDbm = 20.0;
         this.txGainDb = 0.0;
 
         // Por defecto: OMNI (compatible con ISOTROPIC)
