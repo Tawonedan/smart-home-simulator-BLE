@@ -7,7 +7,9 @@ public class Sensor extends Device {
     // ==== Medida y potencia ====
     private double value;     // Lo que mide el sensor: temperatura, humedad, etc.
     private double TxDbm;     // Potencia de transmisión en dBm
-    private double txGainDb;  // Ganancia TX (dBi). Útil para direccional.
+    private double txGainDb = 0.0;
+    private double orientationDeg = 0.0; // orientación de la antena direccional, en grados
+
 
     // ==== Antenas ====
     // Mantengo los valores antiguos (ISOTROPIC/DIRECTIVE) y añado los nuevos (OMNI/DIRECTIONAL).
@@ -53,6 +55,13 @@ public class Sensor extends Device {
     public void setDirectiveQuadrant(Quadrant directiveQuadrant) {
         this.directiveQuadrant = (directiveQuadrant == null) ? Quadrant.Q1 : directiveQuadrant;
     }
+    
+    public double getOrientationDeg() { return orientationDeg; }
+    public void setOrientationDeg(double orientationDeg) {
+        this.orientationDeg = orientationDeg % 360.0;
+        if (this.orientationDeg < 0) this.orientationDeg += 360.0;
+    }
+    
 
     // ==== Helpers de compatibilidad / conveniencia ====
 

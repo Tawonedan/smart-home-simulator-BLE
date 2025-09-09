@@ -131,9 +131,14 @@ public class VisualGridApp extends Application {
      // 1) Sensor y Hub
         Sensor S1 = new Sensor("S1", "Temp salón", 5, 5, 22.5);
         S1.setTxDbm(20.0);
+        S1.setOrientationDeg(70);
         config.addSensor(S1);
+        
+        Sensor S2 = new Sensor("S2", "Router", 25, 10, 22.5);
+        S2.setTxDbm(20.0);
+        config.addSensor(S2);
 
-        Hub H1 = new Hub("H1", "Hub central", 15, 5);
+        Hub H1 = new Hub("H1", "Hub central", 15, 6);
         H1.setGrDb(0.0);
         config.setHub(H1);
 
@@ -1042,79 +1047,67 @@ public class VisualGridApp extends Application {
     /** Dibuja un heatmap de Rx (o SNR si está activado) celda a celda. */
     private void drawHeatmap() {
         GraphicsContext g = gridCanvas.getGraphicsContext2D();
-
-        // Limpia el heatmap previo
         g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
 
-        // Rango de colores
-        final double MIN_DBM = -100.0; // azul
-        final double MAX_DBM =  -30.0; // rojo
+        final double MIN_DBM = -100.0;
+        final double MAX_DBM =  -30.0;
 
-        // SNR en UI
+        // Noise floor realista
+        final double noiseDbm = -174.0
+                + 10.0 * Math.log10(env.getBandwidthHz())
+                + env.getNoiseFigureDb();
+
         final boolean showSnr = chkShowSnr != null && chkShowSnr.isSelected();
-        final double noiseDbm = env.noiseFloorDbm();
 
-        // Parámetros de directividad (ajústalos si quieres)
-        final double OUT_OF_BEAM_ATTEN_DB = 25.0;  // fuera del haz restamos 25 dB
-        final double MAIN_LOBE_EXTRA_DB;           // ganancia principal si tu Sensor la define
+        // Parámetros de antena direccional
+        final double HPBW = 60.0;      // half-power beamwidth (grados)
+        final double SIDE_ATTEN_DB = 25.0; // atenuación mínima fuera de haz
 
-        // Recorremos celdas del grid
         for (int y = 0; y < GRID_MAX_Y; y++) {
             for (int x = 0; x < GRID_MAX_X; x++) {
-                // Centro de la celda (en coordenadas de grid)
                 double cx = x + 0.5;
                 double cy = y + 0.5;
 
-                // Suma de contribuciones en dominio lineal (mW)
                 double sumMw = 0.0;
 
                 for (Sensor s : config.getSensores()) {
                     double dx = cx - s.getX();
                     double dy = cy - s.getY();
                     double d  = Math.hypot(dx, dy);
-                    if (d < 1e-6) d = 1e-3; // evita log(0)
+                    if (d < 1e-6) d = 1e-3;
 
-                    // === Ganancia por directividad ===
+                    // Ángulo hacia la celda
+                    double angleToCell = Math.toDegrees(Math.atan2(dy, dx));
+                    if (angleToCell < 0) angleToCell += 360.0;
+
                     double gainDb = 0.0;
 
-                    // intenta usar la ganancia de TX del sensor si existe (por si añadiste getTxGainDb)
-                    double txGainDb = 0.0;
-                    try { txGainDb = s.getTxGainDb(); } catch (Throwable ignore) { /* campo opcional */ }
+                    if (s.getAntennaType() == Sensor.AntennaType.DIRECTIVE ||
+                        s.getAntennaType() == Sensor.AntennaType.DIRECTIONAL) {
 
-                    Sensor.AntennaType at = s.getAntennaType();
-                    boolean isDirectional =
-                            (at == Sensor.AntennaType.DIRECTIVE) ||
-                            (at == Sensor.AntennaType.DIRECTIONAL);
+                        double delta = Math.abs(angleToCell - s.getOrientationDeg());
+                        if (delta > 180) delta = 360 - delta; // menor ángulo
 
-                    if (isDirectional) {
-                        double angleToCell = deg0to360(Math.toDegrees(Math.atan2(dy, dx)));
-                        boolean inside = isInsideQuadrant(angleToCell, s.getDirectiveQuadrant());
-
-                        if (inside) {
-                            // dentro del haz: añade la ganancia "de antena" si la usas
-                            gainDb += txGainDb; // si no usas ganancia, esto será 0
+                        if (delta <= HPBW / 2) {
+                            // dentro del haz principal → cos² roll-off
+                            double norm = delta / (HPBW / 2); // 0 → centro, 1 → borde
+                            double rollOff = Math.cos(norm * Math.PI / 2.0);
+                            gainDb = s.getTxGainDb() + 20 * Math.log10(Math.max(rollOff, 1e-3));
                         } else {
-                            // fuera del haz: penalización fuerte
-                            gainDb -= OUT_OF_BEAM_ATTEN_DB;
+                            // fuera de haz → penalización fuerte
+                            gainDb = -SIDE_ATTEN_DB;
                         }
                     }
-                    // (si es OMNI/ISOTROPIC, gainDb = 0)
 
-                    // === Pérdidas ===
+                    // Pérdidas
                     double fspl = Propagation.fsplLossDb(d, env.getFreqMHz());
-
-                    // Pérdida por paredes (línea recta sensor→celda, en coords de grid)
                     double wloss = Propagation.wallLossAlongLine(
                             env.getWalls(), env.getFreqMHz(),
                             s.getX(), s.getY(), cx, cy);
-
-                    // Atenuación del medio
                     double alphaLoss = env.getAlphaDbPerMeter() * d;
 
-                    // Potencia recibida en la celda por este sensor
+                    // Potencia recibida
                     double prxDbm = s.getTxDbm() + gainDb - fspl - alphaLoss - wloss;
-
-                    // Suma en mW
                     sumMw += Math.pow(10.0, prxDbm / 10.0);
                 }
 
@@ -1123,7 +1116,6 @@ public class VisualGridApp extends Application {
                 double prxTotDbm = 10.0 * Math.log10(sumMw);
                 double valueForColor = showSnr ? (prxTotDbm - noiseDbm) : prxTotDbm;
 
-                // Normaliza a [0,1]
                 double t;
                 if (showSnr) {
                     double minS = 0.0, maxS = 60.0;
@@ -1133,11 +1125,9 @@ public class VisualGridApp extends Application {
                 }
                 t = Math.max(0.0, Math.min(1.0, t));
 
-                // Color
                 Color c = lerpTurbo(t);
                 g.setFill(c);
 
-                // Pintado respetando márgenes y eje Y invertido
                 double left   = px(x);
                 double right  = px(x + 1);
                 double top    = py(y + 1);
@@ -1146,6 +1136,7 @@ public class VisualGridApp extends Application {
             }
         }
     }
+
 
     
     
