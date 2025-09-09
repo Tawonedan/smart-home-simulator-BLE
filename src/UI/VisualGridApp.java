@@ -126,6 +126,7 @@ public class VisualGridApp extends Application {
 
         // Sensores demo
         Sensor S1 = new Sensor("S1", "Temp salón", 3, 2, 22.5);
+        S1.setAntennaType(Sensor.AntennaType.DIRECTIONAL);
         config.addSensor(S1);
         // (puedes omitir estas dos líneas y dejar que repaintAll pinte todo)
         config.getSensores().forEach(s -> pintarSensor((Pane)((BorderPane)root).getCenter(), s));
@@ -371,6 +372,39 @@ public class VisualGridApp extends Application {
 
             Circle dot = new Circle(cx, cy, 6, Color.DODGERBLUE);
             dot.setStroke(Color.DARKBLUE);
+            
+         // Menú contextual para tipo y cuadrante
+            ContextMenu cm = new ContextMenu();
+            Menu mType = new Menu("Tipo de antena");
+            RadioMenuItem miOmni = new RadioMenuItem("Omnidireccional");
+            RadioMenuItem miDir  = new RadioMenuItem("Direccional (1 cuadrante)");
+            ToggleGroup tg = new ToggleGroup(); miOmni.setToggleGroup(tg); miDir.setToggleGroup(tg);
+            miOmni.setSelected(s.getAntennaType() == Sensor.AntennaType.OMNI);
+            miDir.setSelected(s.getAntennaType() == Sensor.AntennaType.DIRECTIONAL);
+            miOmni.setOnAction(e -> { s.setAntennaType(Sensor.AntennaType.OMNI); repaintAll(); });
+            miDir.setOnAction(e -> { s.setAntennaType(Sensor.AntennaType.DIRECTIONAL); repaintAll(); });
+
+            Menu mQuad = new Menu("Cuadrante");
+            for (Sensor.Quadrant q : Sensor.Quadrant.values()) {
+                RadioMenuItem item = new RadioMenuItem(q.name());
+                item.setSelected(s.getDirectiveQuadrant() == q);
+                item.setOnAction(e -> { s.setDirectiveQuadrant(q); repaintAll(); });
+                item.setToggleGroup(new ToggleGroup());
+                mQuad.getItems().add(item);
+            }
+
+            mType.getItems().addAll(miOmni, miDir);
+            cm.getItems().addAll(mType, mQuad);
+
+            dot.setOnMousePressed(e -> {
+                if (e.isSecondaryButtonDown()) {
+                    cm.show(dot, e.getScreenX(), e.getScreenY());
+                } else {
+                    cm.hide();
+                }
+            });
+
+            
 
             Label lab = label(s.getNombre(), cx + 10, cy - 10, Font.font(12), Color.DARKBLUE);
 
@@ -583,12 +617,20 @@ public class VisualGridApp extends Application {
     private void launchRaysForAllSensors(Pane root) {
         root.getChildren().removeIf(n -> Boolean.TRUE.equals(n.getProperties().get("ray")));
         for (Sensor s : config.getSensores()) {
-            for (int deg = 0; deg < 360; deg += 10) {
-                double angleRad = Math.toRadians(deg);
-                startRay(root, s, angleRad, Color.ORANGE);
+            double stepDeg = 10.0; // resolución angular de los rayos
+            if (s.getAntennaType() == Sensor.AntennaType.OMNI) {
+                for (double deg = 0; deg < 360.0; deg += stepDeg) {
+                    startRay(root, s, Math.toRadians(deg), Color.ORANGE);
+                }
+            } else { // DIRECTIONAL en cuadrante
+                double[] bounds = quadrantToDegRange(s.getDirectiveQuadrant());
+                for (double deg = bounds[0]; deg < bounds[1]; deg += stepDeg) {
+                    startRay(root, s, Math.toRadians(deg), Color.ORANGE);
+                }
             }
         }
     }
+
 
     /** Raytracing simple con rebotes contra paredes (env.getWalls()). */
     private void startRay(Pane root, Sensor s, double angleRad, Color color) {
@@ -863,6 +905,17 @@ public class VisualGridApp extends Application {
 
         hubNode = new Group(hubBox, tag);
         root.getChildren().add(hubNode);
+    }
+
+    /** Devuelve el rango angular [startDeg, endDeg) del cuadrante en grados. */
+    private static double[] quadrantToDegRange(Sensor.Quadrant q) {
+        // Usamos convención trigonométrica: 0° hacia +X, 90° hacia +Y, ccw
+        return switch (q) {
+            case Q1 -> new double[]{ 0.0,  90.0};   // +X,+Y
+            case Q2 -> new double[]{90.0, 180.0};   // -X,+Y
+            case Q3 -> new double[]{180.0,270.0};   // -X,-Y
+            case Q4 -> new double[]{270.0,360.0};   // +X,-Y
+        };
     }
 
     
