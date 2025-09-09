@@ -79,6 +79,8 @@ public class VisualGridApp extends Application {
     // Nuevo motor simple
     private Environment env;            // parámetros físicos + paredes (materiales)
     private List<Wall> walls = new ArrayList<>();
+    private Group wallsLayer;
+
 
     // UI base
     private Group rootGroup;            // superpone heatmap + canvas
@@ -89,6 +91,8 @@ public class VisualGridApp extends Application {
     // Flags heatmap
     private boolean showHeatmap = false;
     private boolean showSNR = false;
+    private CheckBox chkShowSnr;
+
 
     // Dimensiones raster
     private int cellSizePx = SCALE;
@@ -177,38 +181,159 @@ public class VisualGridApp extends Application {
     private void initModel() {
         env = new Environment();
         // Carga una plantilla con materiales
-        env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT);
+       // env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT);
         walls = new ArrayList<>(env.getWalls());
     }
 
     private Parent buildUI() {
-        // Centro: group con heatmap (debajo) y canvas (encima)
-        gridCanvas = new Canvas(gridW * cellSizePx + 2*MARGIN, gridH * cellSizePx + 2*MARGIN);
-        heatmapImg = new WritableImage(gridW, gridH);    // 1 px por celda
+        // ===== Centro: heatmap (debajo) + wallsLayer (medio) + canvas (encima) =====
+        gridCanvas = new Canvas(gridW * cellSizePx + 2 * MARGIN,
+                                gridH * cellSizePx + 2 * MARGIN);
+
+        heatmapImg = new WritableImage(gridW, gridH); // 1 px por celda
         heatmapView = new ImageView(heatmapImg);
         heatmapView.setFitWidth(gridW * cellSizePx);
         heatmapView.setFitHeight(gridH * cellSizePx);
         heatmapView.setOpacity(0.72);
-        heatmapView.setVisible(false);
+        heatmapView.setVisible(false); // oculto por defecto
 
-        // Posiciona el heatmap dentro del margen
         StackPane heatmapHolder = new StackPane(heatmapView);
         heatmapHolder.setPadding(new Insets(MARGIN, MARGIN, MARGIN, MARGIN));
+
+        wallsLayer = new Group();                // <<< capa exclusiva para paredes
         Pane canvasHolder = new Pane(gridCanvas);
-        rootGroup = new Group(heatmapHolder, canvasHolder);
 
-        // Panel lateral
-        VBox side = buildSidePanel();
+        rootGroup = new Group(heatmapHolder, wallsLayer, canvasHolder);
 
+        // Lo envolvemos en un Pane para reutilizar métodos que esperan Pane
+        Pane centerPane = new Pane(rootGroup);
+
+        // ===== Lateral derecho =====
+        VBox side = new VBox(10);
+        side.setPadding(new Insets(10));
+        side.setPrefWidth(250);
+        side.setBackground(new Background(
+            new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)
+        ));
+        side.setBorder(new Border(new BorderStroke(
+            Color.web("#dddddd"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderWidths.DEFAULT
+        )));
+
+        // Frecuencia
+        Label lblFreq = new Label("Frecuencia");
+        ComboBox<String> cbFreq = new ComboBox<>();
+        cbFreq.getItems().addAll("2.4 GHz", "5 GHz");
+        cbFreq.getSelectionModel().select("2.4 GHz");
+        cbFreq.setOnAction(e -> {
+            String sel = cbFreq.getSelectionModel().getSelectedItem();
+            env.setFreqMHz("2.4 GHz".equals(sel) ? Environment.WIFI_24_GHZ_MHZ
+                                                 : Environment.WIFI_5_GHZ_MHZ);
+            if (heatmapView.isVisible()) drawHeatmap();
+            drawWallsInLayer(); // por si el tooltip de pérdidas cambia con la frecuencia
+        });
+
+        // Botón Heatmap (toggle)
+        Button btnHeatmap = new Button("Heatmap");
+        btnHeatmap.setOnAction(e -> {
+            boolean newVis = !heatmapView.isVisible();
+            heatmapView.setVisible(newVis);
+            if (newVis) drawHeatmap();
+        });
+
+        // CheckBox Mostrar SNR
+        chkShowSnr = new CheckBox("Mostrar SNR");
+        chkShowSnr.setSelected(false);
+        chkShowSnr.setOnAction(e -> { if (heatmapView.isVisible()) drawHeatmap(); });
+
+        // BW (Hz)
+        Label lblBW = new Label("BW (Hz)");
+        TextField tfBW = new TextField(String.format("%.3g", env.getBandwidthHz()));
+        Button btnBW = new Button("BW→");
+        btnBW.setOnAction(e -> {
+            try {
+                double bw = Double.parseDouble(tfBW.getText());
+                env.setBandwidthHz(bw);
+                if (heatmapView.isVisible()) drawHeatmap();
+            } catch (NumberFormatException ex) { /* opc: mostrar alerta */ }
+        });
+
+        // NF (dB)
+        Label lblNF = new Label("NF (dB)");
+        TextField tfNF = new TextField(String.format("%.1f", env.getNoiseFigureDb()));
+        Button btnNF = new Button("NF→");
+        btnNF.setOnAction(e -> {
+            try {
+                double nf = Double.parseDouble(tfNF.getText());
+                env.setNoiseFigureDb(nf);
+                if (heatmapView.isVisible()) drawHeatmap();
+            } catch (NumberFormatException ex) { /* opc: alerta */ }
+        });
+
+        // Plantillas de paredes (FUNCIONALES con wallsLayer)
+        Label lblTpl = new Label("Plantillas de paredes");
+        HBox tplRow = new HBox(8);
+        Button tplRect  = new Button("Tpl Rectángulo");
+        Button tplRoom  = new Button("Tpl Habitación");
+        Button tplHouse = new Button("Tpl House L");
+
+        tplRect.setOnAction(e -> {
+            env.setWalls(Environment.WALLS_TEMPLATE_1_MAT);
+            drawWallsInLayer();
+            if (heatmapView.isVisible()) drawHeatmap();
+        });
+        tplRoom.setOnAction(e -> {
+            env.setWalls(Environment.WALLS_TEMPLATE_2_MAT);
+            drawWallsInLayer();
+            if (heatmapView.isVisible()) drawHeatmap();
+        });
+        tplHouse.setOnAction(e -> {
+            env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT);
+            drawWallsInLayer();
+            if (heatmapView.isVisible()) drawHeatmap();
+        });
+        tplRow.getChildren().addAll(tplRect, tplRoom, tplHouse);
+
+        // Acciones
+        Label lblActions = new Label("Acciones");
+        HBox actions1 = new HBox(8);
+        Button btnRays = new Button("Rayos (legacy)");
+        btnRays.setOnAction(e -> {
+            centerPane.getChildren().removeIf(n -> Boolean.TRUE.equals(n.getProperties().get("ray")));
+            launchRaysForAllSensors(centerPane);
+        });
+        Button btnWaves = new Button("Ondas");
+        btnWaves.setOnAction(e -> {
+            centerPane.getChildren().removeIf(n -> Boolean.TRUE.equals(n.getProperties().get("wave")));
+            for (Sensor s : config.getSensores()) launchWavefronts(centerPane, s);
+        });
+        Button btnParams = new Button("Parámetros");
+        btnParams.setOnAction(e -> showParametersWindow());
+        actions1.getChildren().addAll(btnRays, btnWaves, btnParams);
+
+        // Montaje del lateral
+        side.getChildren().addAll(
+            lblFreq, cbFreq,
+            btnHeatmap,
+            chkShowSnr,
+            lblBW, new HBox(6, tfBW, btnBW),
+            lblNF, new HBox(6, tfNF, btnNF),
+            lblTpl, tplRow,
+            lblActions, actions1
+        );
+
+        // ===== BorderPane principal =====
         BorderPane bp = new BorderPane();
-        bp.setCenter(new Pane(rootGroup)); // para reutilizar métodos que esperan Pane
+        bp.setCenter(centerPane);
         bp.setRight(side);
 
-        // Dibuja rejilla inicial
-        drawAxesAndGrid((Pane) bp.getCenter());
-        drawWalls((Pane) bp.getCenter());  // paredes con color por material
+        // Dibujo inicial (rejilla + paredes)
+        drawAxesAndGrid(centerPane);
+        drawWallsInLayer(); // usa la capa
+
         return bp;
     }
+
+
 
     private VBox buildSidePanel() {
         // Heatmap toggles
@@ -331,19 +456,55 @@ public class VisualGridApp extends Application {
         root.getChildren().add(g);
     }
 
+    /** Dibuja las paredes actuales de env, limpiando las anteriores. */
     private void drawWalls(Pane root) {
-        root.getChildren().removeIf(n -> "walls".equals(n.getId()));
-        Group g = new Group();
-        g.setId("walls");
+        // 1) Borrar paredes antiguas (las marcamos con layer="wall")
+        root.getChildren().removeIf(n ->
+            "wall".equals(n.getProperties().get("layer"))
+        );
 
-        for (Wall w : walls) {
-            Line wall = new Line(px(w.getX1()), py(w.getY1()), px(w.getX2()), py(w.getY2()));
-            wall.setStroke(colorFor(w));
-            wall.setStrokeWidth(3);
-            g.getChildren().add(wall);
+        // 2) Dibujar paredes nuevas
+        for (Wall w : env.getWalls()) {
+            Line l = new Line(px(w.getX1()), py(w.getY1()), px(w.getX2()), py(w.getY2()));
+            l.setStroke(colorForMaterial(w.getMaterial()));
+            l.setStrokeWidth(strokeForMaterial(w.getMaterial(), w.getThicknessCm()));
+            l.setOpacity(0.95);
+
+            // marca para poder borrarlas la próxima vez
+            l.getProperties().put("layer", "wall");
+
+            // tooltip con material y pérdidas
+            double lossDb = (w.getMaterial() == null) ? 0.0
+                            : w.getMaterial().lossDb(env.getFreqMHz(), w.getThicknessCm());
+            Tooltip t = new Tooltip(
+                String.format("%s (%.1f cm)\nLoss @%.0f MHz: %.1f dB",
+                    w.getMaterial()!=null ? w.getMaterial().getName() : "WALL",
+                    w.getThicknessCm(), env.getFreqMHz(), lossDb)
+            );
+            Tooltip.install(l, t);
+
+            root.getChildren().add(l);
         }
-        root.getChildren().add(g);
     }
+
+    /** Color por material (ajusta a tu MaterialsDB). */
+    private Color colorForMaterial(core.material.Material m) {
+        if (m == null) return Color.DARKGRAY;
+        String name = m.getName().toLowerCase();
+        if (name.contains("brick"))     return Color.SADDLEBROWN;
+        if (name.contains("concrete"))  return Color.DIMGRAY;
+        if (name.contains("drywall"))   return Color.LIGHTSLATEGRAY;
+        if (name.contains("glass"))     return Color.DEEPSKYBLUE;
+        if (name.contains("metal"))     return Color.DARKRED;
+        return Color.DARKGRAY;
+    }
+
+    /** Grosor visual (no físico). Manténlo pequeño para que no tape la grid. */
+    private double strokeForMaterial(core.material.Material m, double thicknessCm) {
+        // puedes mapear el grosor real si quieres; aquí un valor fijo agradable
+        return 3.0;
+    }
+
 
     private void drawHubAndSensors(Pane root) {
         // limpia hub/sensores previos
@@ -870,7 +1031,91 @@ public class VisualGridApp extends Application {
 
     
     
-    
+    /** Dibuja un heatmap de Rx (o SNR si está activado) celda a celda. */
+    private void drawHeatmap() {
+        GraphicsContext g = gridCanvas.getGraphicsContext2D();
+
+        // Limpia el heatmap previo
+        g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
+
+        // Rango de colores (ajústalo si quieres)
+        final double MIN_DBM = -100.0; // azul
+        final double MAX_DBM =  -30.0; // rojo
+
+        // Si estás mostrando SNR en la UI
+        final boolean showSnr = chkShowSnr != null && chkShowSnr.isSelected();
+        final double noiseDbm = env.noiseFloorDbm();
+
+        // Recorremos celdas del grid (en unidades "metro" de tu mundo)
+        for (int y = 0; y < GRID_MAX_Y; y++) {
+            for (int x = 0; x < GRID_MAX_X; x++) {
+                // Centro de la celda (en coordenadas de tu grid)
+                double cx = x + 0.5;
+                double cy = y + 0.5;
+
+                // Suma de contribuciones en dominio lineal (mW)
+                double sumMw = 0.0;
+
+                for (Sensor s : config.getSensores()) {
+                    double dx = cx - s.getX();
+                    double dy = cy - s.getY();
+                    double d  = Math.hypot(dx, dy);      // distancia en "m"
+
+                    if (d < 1e-6) d = 1e-3;             // evita log(0)
+
+                    // Pérdida libre
+                    double fspl = Propagation.fsplLossDb(d, env.getFreqMHz());
+
+                    // Pérdida por paredes a LO-S (línea recta sensor→celda)
+                    double wloss = Propagation.wallLossAlongLine(
+                            env.getWalls(), env.getFreqMHz(),
+                            s.getX(), s.getY(), cx, cy);
+
+                    // Atenuación lineal del medio
+                    double alphaLoss = env.getAlphaDbPerMeter() * d;
+
+                    // Rx con 0 dB de ganancia en el “receptor ficticio”
+                    double prxDbm = s.getTxDbm() - fspl - alphaLoss - wloss;
+
+                    // Suma en mW
+                    sumMw += Math.pow(10.0, prxDbm / 10.0);
+                }
+
+                // Si no hay sensores, pinta transparente
+                if (sumMw <= 0) continue;
+
+                double prxTotDbm = 10.0 * Math.log10(sumMw);
+                double valueForColor = showSnr ? (prxTotDbm - noiseDbm) : prxTotDbm;
+
+                // Normaliza a [0,1]
+                double t;
+                if (showSnr) {
+                    // Rango típico SNR para colores (ajustable)
+                    double minS = 0.0, maxS = 60.0;
+                    t = (valueForColor - minS) / (maxS - minS);
+                } else {
+                    t = (valueForColor - MIN_DBM) / (MAX_DBM - MIN_DBM);
+                }
+                t = Math.max(0.0, Math.min(1.0, t));
+
+                // Mapea a color (azul→cian→verde→amarillo→rojo)
+                Color c = lerpTurbo(t); // o usa lerpJet(t) de abajo si prefieres
+
+                g.setFill(c);
+
+                // --- Pintado respetando márgenes y eje Y invertido ---
+                double left   = px(x);        // x → pixels
+                double right  = px(x + 1);
+                double top    = py(y + 1);    // ¡OJO!: py invierte el eje
+                double bottom = py(y);
+                double w = right - left;
+                double h = bottom - top;
+
+                g.fillRect(left, top, w, h);
+            }
+        }
+    }
+
     
     
 
@@ -1028,6 +1273,47 @@ public class VisualGridApp extends Application {
         return Math.max(3.0, 0.5 * t); // p.ej. si ladrillo 7 dB → reflexión ≈ 3.5 dB
     }
 
+    
+ // Paleta "turbo" aproximada (suave y moderna)
+    private Color lerpTurbo(double t) {
+        // clamp
+        t = Math.max(0.0, Math.min(1.0, t));
+        // aproximación simple: puedes sustituir por una LUT si quieres más fidelidad
+        // aquí uso una mezcla de stops para un efecto turbo-like
+        return Color.hsb(260*(1-t), 0.95, 0.95); // simple: morado→azul→...→rojo
+    }
+
+    // Paleta "jet" clásica (azul→cian→verde→amarillo→rojo)
+    private Color lerpJet(double t) {
+        t = Math.max(0.0, Math.min(1.0, t));
+        double r = Math.min(Math.max(1.5 - Math.abs(4*t - 3), 0), 1);
+        double g = Math.min(Math.max(1.5 - Math.abs(4*t - 2), 0), 1);
+        double b = Math.min(Math.max(1.5 - Math.abs(4*t - 1), 0), 1);
+        return new Color(r, g, b, 0.85);
+    }
+    
+    private void drawWallsInLayer() {
+        wallsLayer.getChildren().clear();
+        for (Wall w : env.getWalls()) {
+            Line l = new Line(px(w.getX1()), py(w.getY1()), px(w.getX2()), py(w.getY2()));
+            l.setStroke(colorForMaterial(w.getMaterial()));
+            l.setStrokeWidth(strokeForMaterial(w.getMaterial(), w.getThicknessCm()));
+            l.setOpacity(0.95);
+
+            double lossDb = (w.getMaterial() == null) ? 0.0
+                : w.getMaterial().lossDb(env.getFreqMHz(), w.getThicknessCm());
+            Tooltip.install(l, new Tooltip(
+                String.format("%s (%.1f cm) — Loss@%.0fMHz: %.1f dB",
+                    w.getMaterial()!=null ? w.getMaterial().getName() : "WALL",
+                    w.getThicknessCm(), env.getFreqMHz(), lossDb)));
+
+            wallsLayer.getChildren().add(l);
+        }
+    }
+
+    
+
+    
     
 
 }
