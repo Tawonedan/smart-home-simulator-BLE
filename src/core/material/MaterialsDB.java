@@ -27,4 +27,25 @@ public final class MaterialsDB {
         if (s.contains("metal") || s.contains("puerta")) return METAL_DOOR;
         return DRYWALL;
     }
+
+    // ============================================================
+    // NUEVO: interacción de una onda con una pared
+    // ============================================================
+    public static WallInteraction interact(Material mat,
+                                           double freqMHz,
+                                           double thicknessMeters,
+                                           double incidenceAngleDeg) {
+        // Pérdida base de transmisión (lo que ya tenías en Material)
+        double baseLoss = mat.lossDb(freqMHz, thicknessMeters);
+
+        // Siempre hay transmisión con esa pérdida
+        double transmitLoss = baseLoss;
+
+        // Reflexión aproximada: depende del ángulo de incidencia
+        double angleRad = Math.toRadians(incidenceAngleDeg);
+        double reflectLoss = 3.0 + 7.0 * Math.sin(angleRad); // 3–10 dB típico
+        reflectLoss = Math.min(reflectLoss, 20.0);           // máx 20 dB
+
+        return new WallInteraction(transmitLoss, reflectLoss, true);
+    }
 }
