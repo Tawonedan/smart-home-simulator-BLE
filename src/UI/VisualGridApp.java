@@ -40,7 +40,10 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.scene.effect.GaussianBlur;
+
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,7 +58,7 @@ public class VisualGridApp extends Application {
 	// ============================
 	public static final int WIDTH = 1000;
 	public static final int HEIGHT = 700;
-	public static final int MARGIN = 60;
+	public static final int MARGIN = 110;
 	public static final int SCALE = 20; // px por celda (1 celda = 1 m)
 	public static final int GRID_MAX_X = 40;
 	public static final int GRID_MAX_Y = 24;
@@ -131,18 +134,18 @@ public class VisualGridApp extends Application {
 		Parent root = buildUI();
 
 		// 1) Sensor y Hub
-		Sensor S1 = new Sensor("S1", "Temp salón", 5, 5, 22.5);
-		S1.setTxDbm(20.0);
-		S1.setOrientationDeg(70);
-		config.addSensor(S1);
+//		Sensor S1 = new Sensor("S1", "Temp salón", 5, 5, 22.5);
+//		S1.setTxDbm(20.0);
+//		S1.setOrientationDeg(70);
+//		config.addSensor(S1);
 
-		Sensor S2 = new Sensor("S2", "Router", 25, 10, 22.5);
-		S2.setTxDbm(20.0);
-		config.addSensor(S2);
+//		Sensor S2 = new Sensor("S2", "Router", 25, 10, 22.5);
+//		S2.setTxDbm(20.0);
+//		config.addSensor(S2);
 
-		Hub H1 = new Hub("H1", "Hub central", 15, 6);
-		H1.setGrDb(0.0);
-		config.setHub(H1);
+//		Hub H1 = new Hub("H1", "Hub central", 15, 6);
+//		H1.setGrDb(0.0);
+//		config.setHub(H1);
 
 		// 2) Entorno
 		env.setFreqMHz(Environment.WIFI_24_GHZ_MHZ); // 2400 MHz
@@ -177,7 +180,7 @@ public class VisualGridApp extends Application {
 		enableProbe(); // tooltip con métricas al mover ratón
 	}
 
-	// ============================
+	// ============================Sss
 	// Inicialización y UI
 	// ============================
 	private void initModel() {
@@ -189,24 +192,26 @@ public class VisualGridApp extends Application {
 
 	private Parent buildUI() {
 	    // ===== Centro: heatmap (debajo) + wallsLayer (medio) + canvas (encima) =====
-	    gridCanvas = new Canvas(gridW * cellSizePx + 2 * MARGIN, gridH * cellSizePx + 2 * MARGIN);
+	    gridCanvas = new Canvas(gridW * cellSizePx + 2 * MARGIN,
+	                            gridH * cellSizePx + 2 * MARGIN);
 
-	    heatmapImg = new WritableImage(gridW, gridH); // 1 px por celda
+	    // Heatmap con tamaño exacto del canvas (incluye márgenes)
+	    int imgW = gridW * cellSizePx + 2 * MARGIN;
+	    int imgH = gridH * cellSizePx + 2 * MARGIN;
+	    heatmapImg = new WritableImage(imgW, imgH);
 	    heatmapView = new ImageView(heatmapImg);
-	    heatmapView.setFitWidth(gridW * cellSizePx);
-	    heatmapView.setFitHeight(gridH * cellSizePx);
+
+	    // ✅ No aplicar setFitWidth/Height ni translateX/Y → ya tiene el tamaño correcto
 	    heatmapView.setOpacity(0.72);
-	    heatmapView.setVisible(false); // oculto por defecto
+	    heatmapView.setVisible(false);
 
-	    StackPane heatmapHolder = new StackPane(heatmapView);
-	    heatmapHolder.setPadding(new Insets(MARGIN, MARGIN, MARGIN, MARGIN));
-
-	    wallsLayer = new Group(); // capa exclusiva para paredes
+	    wallsLayer = new Group();
 	    Pane canvasHolder = new Pane(gridCanvas);
 
-	    rootGroup = new Group(heatmapHolder, wallsLayer, canvasHolder);
+	    // Orden: primero heatmap, luego paredes, luego canvas
+	    rootGroup = new Group(heatmapView, wallsLayer, canvasHolder);
 
-	    // Lo envolvemos en un Pane para reutilizar métodos que esperan Pane
+	    // Lo envolvemos en un Pane
 	    Pane centerPane = new Pane(rootGroup);
 
 	    // ===== Lateral derecho =====
@@ -217,27 +222,112 @@ public class VisualGridApp extends Application {
 	    side.setBorder(new Border(new BorderStroke(Color.web("#dddddd"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY,
 	            BorderWidths.DEFAULT)));
 
-	    // ===== Sección: Añadir dispositivos =====
-	    Label lblDevices = new Label("Añadir dispositivos");
+	    // ===== Sección: Dispositivos =====
+	    Label lblDevices = new Label("Gestión de dispositivos");
+
+	    // Coordenadas
+	    Label lblCoords = new Label("Coordenadas (X,Y)");
+	    TextField tfX = new TextField("5");
+	    tfX.setPrefWidth(60);
+	    TextField tfY = new TextField("5");
+	    tfY.setPrefWidth(60);
+	    HBox coordRow = new HBox(6, tfX, tfY);
+
+	    // Botones de gestión
 	    Button btnAddSensor = new Button("Añadir Sensor");
 	    Button btnAddHub = new Button("Añadir Hub");
+	    Button btnRemove = new Button("Eliminar dispositivo");
 
+	    // Selector de sensor
+	    Label lblSelSensor = new Label("Seleccionar sensor");
+	    ComboBox<Sensor> cbSelectSensor = new ComboBox<>();
+	    cbSelectSensor.setPrefWidth(180);
+
+	    // Configuración de antena
+	    Label lblAnt = new Label("Configuración de antena");
+	    ComboBox<String> cbAntType = new ComboBox<>();
+	    cbAntType.getItems().addAll("Omni", "Direccional");
+	    cbAntType.getSelectionModel().select("Omni");
+
+	    Label lblOrient = new Label("Orientación (°)");
+	    TextField tfOrient = new TextField("0");
+
+	    Label lblBeam = new Label("Beamwidth (°)");
+	    TextField tfBeam = new TextField("90");
+
+	    Button btnApplyConfig = new Button("Aplicar configuración");
+
+	    // --- Acciones de los botones ---
 	    btnAddSensor.setOnAction(e -> {
-	        Sensor s = new Sensor("S" + (config.getSensores().size() + 1),
-	                              "Sensor demo",
-	                              5 + config.getSensores().size(), 5,
-	                              22.5);
-	        config.addSensor(s);
-	        pintarSensor(centerPane, s);
+	        try {
+	            int x = Integer.parseInt(tfX.getText());
+	            int y = Integer.parseInt(tfY.getText());
+
+	            Sensor s = new Sensor("S" + (config.getSensores().size() + 1),
+	                                  "Sensor demo", x, y, 22.5);
+	            config.addSensor(s);
+	            pintarSensor(centerPane, s, cbSelectSensor);
+
+	            cbSelectSensor.getItems().add(s);
+	            cbSelectSensor.getSelectionModel().select(s);
+	        } catch (NumberFormatException ex) {
+	            System.err.println("Coordenadas inválidas");
+	        }
 	    });
 
 	    btnAddHub.setOnAction(e -> {
-	        Hub h = new Hub("H" + (config.hasHub() ? 2 : 1),
-	                        "Hub demo",
-	                        15, 5);
-	        config.setHub(h);
-	        pintarHub(centerPane, h);
+	        try {
+	            int x = Integer.parseInt(tfX.getText());
+	            int y = Integer.parseInt(tfY.getText());
+
+	            Hub h = new Hub("H" + (config.hasHub() ? 2 : 1),
+	                            "Hub demo", x, y);
+	            config.setHub(h);
+	            pintarHub(centerPane, h);
+	        } catch (NumberFormatException ex) {
+	            System.err.println("Coordenadas inválidas");
+	        }
 	    });
+
+	    btnRemove.setOnAction(e -> {
+	        Sensor s = cbSelectSensor.getSelectionModel().getSelectedItem();
+	        if (s != null) {
+	            config.getSensores().remove(s);
+	            cbSelectSensor.getItems().remove(s);
+	            centerPane.getChildren().removeIf(n -> n.getProperties().get("sensor") == s);
+	        } else if (config.hasHub()) {
+	            config.setHub(null);
+	            centerPane.getChildren().removeIf(n -> n.getProperties().get("hub") != null);
+	        }
+	    });
+
+	    btnApplyConfig.setOnAction(e -> {
+	        Sensor s = cbSelectSensor.getSelectionModel().getSelectedItem();
+	        if (s != null) {
+	            String t = cbAntType.getSelectionModel().getSelectedItem();
+	            if ("Omni".equals(t)) {
+	                s.setAntennaType(Sensor.AntennaType.OMNI);
+	            } else {
+	                s.setAntennaType(Sensor.AntennaType.DIRECTIONAL);
+	            }
+	            try {
+	                s.setOrientationDeg(Double.parseDouble(tfOrient.getText()));
+	            } catch (NumberFormatException ex) { s.setOrientationDeg(0); }
+	            try {
+	                s.setBeamwidthDeg(Double.parseDouble(tfBeam.getText()));
+	            } catch (NumberFormatException ex) { s.setBeamwidthDeg(90); }
+
+	            if (heatmapView.isVisible()) drawHeatmap();
+	        }
+	    });
+
+	    VBox deviceBox = new VBox(8,
+	        lblDevices, lblCoords, coordRow,
+	        btnAddSensor, btnAddHub, btnRemove,
+	        lblSelSensor, cbSelectSensor,
+	        lblAnt, cbAntType, lblOrient, tfOrient, lblBeam, tfBeam,
+	        btnApplyConfig
+	    );
 
 	    // ===== Frecuencia =====
 	    Label lblFreq = new Label("Frecuencia");
@@ -266,7 +356,6 @@ public class VisualGridApp extends Application {
 	        g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
 	    });
 
-	    // Mostrar SNR
 	    chkShowSnr = new CheckBox("Mostrar SNR");
 	    chkShowSnr.setSelected(false);
 	    chkShowSnr.setOnAction(e -> {
@@ -321,42 +410,6 @@ public class VisualGridApp extends Application {
 	    });
 	    tplRow.getChildren().addAll(tplRect, tplRoom, tplHouse);
 
-	    // ===== Configuración de antena =====
-	    Label lblAnt = new Label("Configuración de antena");
-	    ComboBox<String> cbAntType = new ComboBox<>();
-	    cbAntType.getItems().addAll("Omni", "Direccional");
-	    cbAntType.getSelectionModel().select("Omni");
-
-	    Label lblOrient = new Label("Orientación (°)");
-	    TextField tfOrient = new TextField("0");
-
-	    Label lblBeam = new Label("Beamwidth (°)");
-	    TextField tfBeam = new TextField("90");
-
-	    Button btnApplyAnt = new Button("Aplicar a último sensor");
-	    btnApplyAnt.setOnAction(e -> {
-	        if (!config.getSensores().isEmpty()) {
-	            Sensor s = config.getSensores().get(config.getSensores().size() - 1);
-
-	            String t = cbAntType.getSelectionModel().getSelectedItem();
-	            if ("Omni".equals(t)) {
-	                s.setAntennaType(Sensor.AntennaType.OMNI);
-	            } else {
-	                s.setAntennaType(Sensor.AntennaType.DIRECTIONAL);
-	            }
-
-	            try {
-	                s.setOrientationDeg(Double.parseDouble(tfOrient.getText()));
-	            } catch (NumberFormatException ex) { s.setOrientationDeg(0); }
-
-	            try {
-	                s.setBeamwidthDeg(Double.parseDouble(tfBeam.getText()));
-	            } catch (NumberFormatException ex) { s.setBeamwidthDeg(90); }
-
-	            if (heatmapView.isVisible()) drawHeatmap();
-	        }
-	    });
-
 	    // ===== Acciones =====
 	    Label lblActions = new Label("Acciones");
 	    HBox actions1 = new HBox(8);
@@ -374,15 +427,14 @@ public class VisualGridApp extends Application {
 	    btnParams.setOnAction(e -> showParametersWindow());
 	    actions1.getChildren().addAll(btnRays, btnWaves, btnParams);
 
-	    // Montaje del lateral
+	    // ===== Montaje lateral =====
 	    side.getChildren().addAll(
-	        lblDevices, btnAddSensor, btnAddHub,
+	        deviceBox,
 	        lblFreq, cbFreq,
 	        btnHeatmap, btnClearHeatmap, chkShowSnr,
 	        lblBW, new HBox(6, tfBW, btnBW),
 	        lblNF, new HBox(6, tfNF, btnNF),
 	        lblTpl, tplRow,
-	        lblAnt, cbAntType, lblOrient, tfOrient, lblBeam, tfBeam, btnApplyAnt,
 	        lblActions, actions1
 	    );
 
@@ -391,12 +443,12 @@ public class VisualGridApp extends Application {
 	    bp.setCenter(centerPane);
 	    bp.setRight(side);
 
-	    // Dibujo inicial
 	    drawAxesAndGrid(centerPane);
 	    drawWallsInLayer();
 
 	    return bp;
 	}
+
 
 
 	private VBox buildSidePanel() {
@@ -1155,97 +1207,92 @@ public class VisualGridApp extends Application {
 
 	/** Dibuja un heatmap de Rx (o SNR si está activado) celda a celda. */
 	private void drawHeatmap() {
-		GraphicsContext g = gridCanvas.getGraphicsContext2D();
-		g.clearRect(0, 0, gridCanvas.getWidth(), gridCanvas.getHeight());
+	    final double MIN_DBM = -100.0;
+	    final double MAX_DBM = -30.0;
 
-		final double MIN_DBM = -100.0;
-		final double MAX_DBM = -30.0;
+	    final double noiseDbm = -174.0 + 10.0 * Math.log10(env.getBandwidthHz()) + env.getNoiseFigureDb();
+	    final boolean showSnr = chkShowSnr != null && chkShowSnr.isSelected();
 
-		// Noise floor realista
-		final double noiseDbm = -174.0 + 10.0 * Math.log10(env.getBandwidthHz()) + env.getNoiseFigureDb();
+	    final double HPBW = 60.0;          // Half-power beamwidth
+	    final double SIDE_ATTEN_DB = 25.0; // Atenuación fuera de haz
 
-		final boolean showSnr = chkShowSnr != null && chkShowSnr.isSelected();
+	    PixelWriter pw = heatmapImg.getPixelWriter();
+	    int imgW = (int) heatmapImg.getWidth();
+	    int imgH = (int) heatmapImg.getHeight();
 
-		// Parámetros de antena direccional
-		final double HPBW = 60.0; // half-power beamwidth (grados)
-		final double SIDE_ATTEN_DB = 25.0; // atenuación mínima fuera de haz
+	    for (int py = 0; py < imgH; py++) {
+	        for (int px = 0; px < imgW; px++) {
 
-		for (int y = 0; y < GRID_MAX_Y; y++) {
-			for (int x = 0; x < GRID_MAX_X; x++) {
-				double cx = x + 0.5;
-				double cy = y + 0.5;
+	            // 🔹 Convertir pixel → coordenadas del mundo (en celdas)
+	            double gx = (px - MARGIN) / (double) cellSizePx;
+	            double gy = (imgH - py - MARGIN) / (double) cellSizePx; // invertimos Y
 
-				double sumMw = 0.0;
+	            // 🔹 Si estamos fuera de la rejilla → transparente
+	            if (gx < 0 || gx >= gridW || gy < 0 || gy >= gridH) {
+	                pw.setColor(px, py, Color.TRANSPARENT);
+	                continue;
+	            }
 
-				for (Sensor s : config.getSensores()) {
-					double dx = cx - s.getX();
-					double dy = cy - s.getY();
-					double d = Math.hypot(dx, dy);
-					if (d < 1e-6)
-						d = 1e-3;
+	            double sumMw = 0.0;
 
-					// Ángulo hacia la celda
-					double angleToCell = Math.toDegrees(Math.atan2(dy, dx));
-					if (angleToCell < 0)
-						angleToCell += 360.0;
+	            for (Sensor s : config.getSensores()) {
+	                double dx = gx - s.getX();
+	                double dy = gy - s.getY();
+	                double d = Math.hypot(dx, dy);
+	                if (d < 1e-6) d = 1e-3;
 
-					double gainDb = 0.0;
+	                // Ángulo relativo sensor → celda
+	                double angleToCell = Math.toDegrees(Math.atan2(dy, dx));
+	                if (angleToCell < 0) angleToCell += 360.0;
 
-					if (s.getAntennaType() == Sensor.AntennaType.DIRECTIVE
-							|| s.getAntennaType() == Sensor.AntennaType.DIRECTIONAL) {
+	                double gainDb = 0.0;
+	                if (s.isDirectional()) {
+	                    double delta = Math.abs(angleToCell - s.getOrientationDeg());
+	                    if (delta > 180) delta = 360 - delta;
 
-						double delta = Math.abs(angleToCell - s.getOrientationDeg());
-						if (delta > 180)
-							delta = 360 - delta; // menor ángulo
+	                    if (delta <= HPBW / 2) {
+	                        double norm = delta / (HPBW / 2);
+	                        double rollOff = Math.cos(norm * Math.PI / 2.0);
+	                        gainDb = s.getTxGainDb() + 20 * Math.log10(Math.max(rollOff, 1e-3));
+	                    } else {
+	                        gainDb = -SIDE_ATTEN_DB;
+	                    }
+	                }
 
-						if (delta <= HPBW / 2) {
-							// dentro del haz principal → cos² roll-off
-							double norm = delta / (HPBW / 2); // 0 → centro, 1 → borde
-							double rollOff = Math.cos(norm * Math.PI / 2.0);
-							gainDb = s.getTxGainDb() + 20 * Math.log10(Math.max(rollOff, 1e-3));
-						} else {
-							// fuera de haz → penalización fuerte
-							gainDb = -SIDE_ATTEN_DB;
-						}
-					}
+	                // Pérdidas
+	                double fspl = Propagation.fsplLossDb(d, env.getFreqMHz());
+	                double wloss = Propagation.wallLossAlongLine(env.getWalls(), env.getFreqMHz(),
+	                                                             s.getX(), s.getY(), gx, gy);
+	                double alphaLoss = env.getAlphaDbPerMeter() * d;
 
-					// Pérdidas
-					double fspl = Propagation.fsplLossDb(d, env.getFreqMHz());
-					double wloss = Propagation.wallLossAlongLine(env.getWalls(), env.getFreqMHz(), s.getX(), s.getY(),
-							cx, cy);
-					double alphaLoss = env.getAlphaDbPerMeter() * d;
+	                double prxDbm = s.getTxDbm() + gainDb - fspl - alphaLoss - wloss;
+	                sumMw += Math.pow(10.0, prxDbm / 10.0);
+	            }
 
-					// Potencia recibida
-					double prxDbm = s.getTxDbm() + gainDb - fspl - alphaLoss - wloss;
-					sumMw += Math.pow(10.0, prxDbm / 10.0);
-				}
+	            if (sumMw <= 0) {
+	                pw.setColor(px, py, Color.TRANSPARENT);
+	                continue;
+	            }
 
-				if (sumMw <= 0)
-					continue;
+	            double prxTotDbm = 10.0 * Math.log10(sumMw);
+	            double valueForColor = showSnr ? (prxTotDbm - noiseDbm) : prxTotDbm;
 
-				double prxTotDbm = 10.0 * Math.log10(sumMw);
-				double valueForColor = showSnr ? (prxTotDbm - noiseDbm) : prxTotDbm;
+	            double t;
+	            if (showSnr) {
+	                double minS = 0.0, maxS = 60.0;
+	                t = (valueForColor - minS) / (maxS - minS);
+	            } else {
+	                t = (valueForColor - MIN_DBM) / (MAX_DBM - MIN_DBM);
+	            }
+	            t = Math.max(0.0, Math.min(1.0, t));
 
-				double t;
-				if (showSnr) {
-					double minS = 0.0, maxS = 60.0;
-					t = (valueForColor - minS) / (maxS - minS);
-				} else {
-					t = (valueForColor - MIN_DBM) / (MAX_DBM - MIN_DBM);
-				}
-				t = Math.max(0.0, Math.min(1.0, t));
-
-				Color c = lerpTurbo(t);
-				g.setFill(c);
-
-				double left = px(x);
-				double right = px(x + 1);
-				double top = py(y + 1);
-				double bottom = py(y);
-				g.fillRect(left, top, right - left, bottom - top);
-			}
-		}
+	            Color c = lerpTurbo(t);
+	            pw.setColor(px, py, c);
+	        }
+	    }
 	}
+
+
 
 	// ============================
 	// Utilidades geométricas/UI
@@ -1335,45 +1382,55 @@ public class VisualGridApp extends Application {
 	}
 
 	/** Dibuja un sensor en el pane con su tooltip. */
-	private void pintarSensor(Pane root, Sensor s) {
-		double cx = px(s.getX());
-		double cy = py(s.getY());
+	private void pintarSensor(Pane root, Sensor s, ComboBox<Sensor> cbSelectSensor) {
+	    Circle circle = new Circle(px(s.getX()), py(s.getY()), 6, Color.BLUE);
+	    circle.setStroke(Color.BLACK);
+	    circle.setStrokeWidth(1.2);
+	    circle.getProperties().put("sensor", s);
 
-		Circle dot = new Circle(cx, cy, 6, Color.DODGERBLUE);
-		dot.setStroke(Color.DARKBLUE);
+	    Tooltip tooltip = new Tooltip(s.toString());
+	    Tooltip.install(circle, tooltip);
 
-		Label lab = label(s.getNombre(), cx + 10, cy - 10, Font.font(12), Color.DARKBLUE);
+	    // === Click para seleccionar sensor en el ComboBox ===
+	    circle.setOnMouseClicked(e -> {
+	        cbSelectSensor.getSelectionModel().select(s);
+	    });
 
-		String tipText = String.format("%s\nPos: (%d,%d)\nTx: %.1f dBm\nValor: %.1f", s.getNombre(), s.getX(), s.getY(),
-				s.getTxDbm(), s.getValue());
-		Tooltip tip = new Tooltip(tipText);
-		Tooltip.install(dot, tip);
+	    root.getChildren().add(circle);
 
-		root.getChildren().addAll(dot, lab);
-		nodos.put(s, new NodeBundle(dot, lab, tip));
+	    // Texto con el nombre
+	    Text label = new Text(px(s.getX()) + 10, py(s.getY()), s.getNombre());
+	    label.setFont(Font.font(12));
+	    root.getChildren().add(label);
 	}
+
 
 	/** Dibuja el hub en el pane con su tooltip. */
 	private void pintarHub(Pane root, Hub h) {
-		if (hubNode != null)
-			root.getChildren().remove(hubNode);
+	    Rectangle rect = new Rectangle(px(h.getX()) - 6, py(h.getY()) - 6, 12, 12);
+	    rect.setFill(Color.RED);
+	    rect.setStroke(Color.BLACK);
+	    rect.setStrokeWidth(1.5);
+	    rect.getProperties().put("hub", h);
 
-		double cx = px(h.getX());
-		double cy = py(h.getY());
+	    Tooltip tooltip = new Tooltip("Hub " + h.getId() + " en (" + h.getX() + "," + h.getY() + ")");
+	    Tooltip.install(rect, tooltip);
 
-		hubBox = new Rectangle(cx - 7, cy - 7, 14, 14);
-		hubBox.setFill(Color.CRIMSON);
-		hubBox.setStroke(Color.DARKRED);
-		hubBox.setStrokeWidth(2);
+	    // === Click para mostrar que el hub está seleccionado ===
+	    rect.setOnMouseClicked(e -> {
+	        System.out.println("Hub seleccionado: " + h.getId());
+	        // Aquí podrías poner, por ejemplo, un Label en la UI
+	        // o incluso habilitar controles específicos del Hub
+	    });
 
-		Label tag = label("HUB", cx + 10, cy - 10, Font.font(12), Color.CRIMSON);
+	    root.getChildren().add(rect);
 
-		hubTooltip = new Tooltip(String.format("Hub %s (%d,%d)\nRx: —", h.getId(), h.getX(), h.getY()));
-		Tooltip.install(hubBox, hubTooltip);
-
-		hubNode = new Group(hubBox, tag);
-		root.getChildren().add(hubNode);
+	    // Texto con el nombre
+	    Text label = new Text(px(h.getX()) + 12, py(h.getY()), h.getNombre());
+	    label.setFont(Font.font(12));
+	    root.getChildren().add(label);
 	}
+
 
 	/** Devuelve el rango angular [startDeg, endDeg) del cuadrante en grados. */
 	private static double[] quadrantToDegRange(Sensor.Quadrant q) {
