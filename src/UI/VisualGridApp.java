@@ -695,20 +695,9 @@ public class VisualGridApp extends Application {
 				repaintAll();
 			});
 
-			Menu mQuad = new Menu("Cuadrante");
-			for (Sensor.Quadrant q : Sensor.Quadrant.values()) {
-				RadioMenuItem item = new RadioMenuItem(q.name());
-				item.setSelected(s.getDirectiveQuadrant() == q);
-				item.setOnAction(e -> {
-					s.setDirectiveQuadrant(q);
-					repaintAll();
-				});
-				item.setToggleGroup(new ToggleGroup());
-				mQuad.getItems().add(item);
-			}
+			
 
-			mType.getItems().addAll(miOmni, miDir);
-			cm.getItems().addAll(mType, mQuad);
+			
 
 			dot.setOnMousePressed(e -> {
 				if (e.isSecondaryButtonDown()) {
@@ -1434,15 +1423,7 @@ public class VisualGridApp extends Application {
 
 
 	/** Devuelve el rango angular [startDeg, endDeg) del cuadrante en grados. */
-	private static double[] quadrantToDegRange(Sensor.Quadrant q) {
-		// Usamos convención trigonométrica: 0° hacia +X, 90° hacia +Y, ccw
-		return switch (q) {
-		case Q1 -> new double[] { 0.0, 90.0 }; // +X,+Y
-		case Q2 -> new double[] { 90.0, 180.0 }; // -X,+Y
-		case Q3 -> new double[] { 180.0, 270.0 }; // -X,-Y
-		case Q4 -> new double[] { 270.0, 360.0 }; // +X,-Y
-		};
-	}
+	
 
 	/** Pequeño flash en el HUB cuando una onda/rayo “impacta”. */
 	private void flashAtHub(Pane root, Hub h) {
@@ -1519,15 +1500,4 @@ public class VisualGridApp extends Application {
 			a += 360.0;
 		return a;
 	}
-
-	/** Devuelve true si el ángulo (0–360) está dentro del cuadrante Q1..Q4. */
-	private static boolean isInsideQuadrant(double angleDeg, Sensor.Quadrant q) {
-		return switch (q) {
-		case Q1 -> (angleDeg >= 0 && angleDeg < 90);
-		case Q2 -> (angleDeg >= 90 && angleDeg < 180);
-		case Q3 -> (angleDeg >= 180 && angleDeg < 270);
-		case Q4 -> (angleDeg >= 270 && angleDeg < 360);
-		};
-	}
-
 }

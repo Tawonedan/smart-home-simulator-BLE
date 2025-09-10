@@ -15,10 +15,9 @@ public class Sensor extends Device {
 
     // ==== Antenas ====
     public enum AntennaType { ISOTROPIC, DIRECTIVE, OMNI, DIRECTIONAL }
-    public enum Quadrant { Q1, Q2, Q3, Q4 }
-
+  
     private AntennaType antennaType;
-    private Quadrant directiveQuadrant;
+   
 
     // ==== Constructores ====
     public Sensor(String id, String nombre, int x, int y, double value) {
@@ -29,7 +28,7 @@ public class Sensor extends Device {
 
         // Por defecto: OMNI (compatible con ISOTROPIC)
         this.antennaType = AntennaType.OMNI;
-        this.directiveQuadrant = Quadrant.Q1;
+       
     }
 
     // ==== Medida ====
@@ -47,11 +46,6 @@ public class Sensor extends Device {
     public AntennaType getAntennaType() { return antennaType; }
     public void setAntennaType(AntennaType antennaType) {
         this.antennaType = (antennaType == null) ? AntennaType.OMNI : antennaType;
-    }
-
-    public Quadrant getDirectiveQuadrant() { return directiveQuadrant; }
-    public void setDirectiveQuadrant(Quadrant directiveQuadrant) {
-        this.directiveQuadrant = (directiveQuadrant == null) ? Quadrant.Q1 : directiveQuadrant;
     }
 
     public double getOrientationDeg() { return orientationDeg; }
@@ -74,14 +68,7 @@ public class Sensor extends Device {
         return antennaType == AntennaType.DIRECTIONAL || antennaType == AntennaType.DIRECTIVE;
     }
 
-    public double[] quadrantBoundsDeg() {
-        return switch (directiveQuadrant) {
-            case Q1 -> new double[]{  0.0,  90.0};
-            case Q2 -> new double[]{ 90.0, 180.0};
-            case Q3 -> new double[]{180.0, 270.0};
-            case Q4 -> new double[]{270.0, 360.0};
-        };
-    }
+   
 
     // ==== Generación de ángulos ====
     public List<Double> emissionAnglesDeg(double stepDeg) {
@@ -126,7 +113,6 @@ public class Sensor extends Device {
                 ", antenna=" + antennaType +
                 ", beam=" + beamwidthDeg + "°" +
                 ", orient=" + orientationDeg + "°" +
-                ", quadrant=" + directiveQuadrant +
                 '}';
     }
 }
