@@ -58,10 +58,11 @@ public class VisualGridApp extends Application {
 	// ============================
 	public static final int WIDTH = 1000;
 	public static final int HEIGHT = 700;
-	public static final int MARGIN = 110;
-	public static final int SCALE = 20; // px por celda (1 celda = 1 m)
-	public static final int GRID_MAX_X = 40;
-	public static final int GRID_MAX_Y = 24;
+	public static final int MARGIN = 35;
+	public static final int GRID_MAX_X = 35;
+	public static final int GRID_MAX_Y = 35;
+	public static final int SCALE = 18;
+
 
 	// ============================
 	// Parámetros raytracing legacy
@@ -394,7 +395,7 @@ public class VisualGridApp extends Application {
 	    Button tplHouse = new Button("Tpl House L");
 
 	    tplRect.setOnAction(e -> {
-	        env.setWalls(Environment.WALLS_TEMPLATE_1_MAT);
+	        env.setWalls(Environment.WALLS_TEMPLATE_House1);
 	        drawWallsInLayer();
 	        if (heatmapView.isVisible()) drawHeatmap();
 	    });
@@ -500,7 +501,7 @@ public class VisualGridApp extends Application {
 		// Templates paredes (materiales)
 		Button btnTpl1 = new Button("Tpl Rectángulo");
 		btnTpl1.setOnAction(e -> {
-			env.setWalls(Environment.WALLS_TEMPLATE_1_MAT);
+			env.setWalls(Environment.WALLS_TEMPLATE_House1);
 			walls = new ArrayList<>(env.getWalls());
 			repaintAll();
 		});

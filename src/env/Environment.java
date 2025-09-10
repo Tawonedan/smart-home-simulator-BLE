@@ -115,11 +115,24 @@ public class Environment {
         return this.freqMHz * 1e6;
     }
     
-    public static final List<Wall> WALLS_TEMPLATE_1_MAT = java.util.Arrays.asList(
-    	    new Wall(0, 0, 0, 24, CONCRETE, 15),  // hormigón 15 cm
-    	    new Wall(40, 0, 40, 24, CONCRETE, 15),
-    	    new Wall(0, 24, 40, 24, BRICK, 12),
-    	    new Wall(0, 0, 40, 0, BRICK, 12)
+    public static final List<Wall> WALLS_TEMPLATE_House1 = java.util.Arrays.asList(
+    		// 🔹 Perímetro exterior
+    	    new Wall(0, 10, 10, 10, BRICK, 10),      // base izquierda
+    	    new Wall(10, 10, 10, 25, BRICK, 10),     // pared izquierda
+    	    new Wall(10, 25, 28, 25, BRICK, 10),     // techo superior
+    	    new Wall(28, 25, 28, 8, BRICK, 10),      // pared derecha
+    	    new Wall(28, 8, 20, 8, BRICK, 10),       // base derecha
+    	    new Wall(20, 9, 20, 17, BRICK, 10),      // subida central derecha
+    	    new Wall(20, 17, 27, 17, BRICK, 10),     // horizontal hab. derecha
+    	    new Wall(28, 17, 28, 8, BRICK, 10),		// cierre hab. derecha
+    	    new Wall(0, 8 , 20 , 8, BRICK, 10 ),
+
+    	    // 🔹 Interiores
+    	    new Wall(10, 14, 14, 14, BRICK, 10),     // horizontal interior izquierda
+    	    new Wall(15, 14, 15, 19, BRICK, 10),     // vertical interior central
+    	    new Wall(15, 19, 12, 19, BRICK, 10),     // horizontal corta hacia izq
+    	    new Wall(12, 19, 12, 24, BRICK, 10),      // conecta con techo
+    	    new Wall(12, 25, 12, 24, BRICK, 10)
     	);
 
     	public static final List<Wall> WALLS_TEMPLATE_2_MAT = java.util.Arrays.asList(
@@ -154,6 +167,8 @@ public class Environment {
     	    
     	    new Wall(0, 0, 40, 0, BRICK, 12)
     	);
+    	
+    	
 
     
     
