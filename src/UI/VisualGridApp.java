@@ -112,6 +112,7 @@ public class VisualGridApp extends Application {
 	private ComboBox<FadingModel> cbFading;
 	private CheckBox chkDiffraction;
 	private CheckBox chkScattering;
+	private String activeTemplateName = Environment.defaultTemplateName();
 
 	// Dimensiones raster
 	private int cellSizePx = SCALE;
@@ -203,8 +204,8 @@ public class VisualGridApp extends Application {
 	// ============================
 	private void initModel() {
 		env = new Environment();
-		// Carga una plantilla con materiales
-		// env.setWalls(Environment.WALLS_TEMPLATE_HOUSE_MAT);
+		activeTemplateName = Environment.defaultTemplateName();
+		env.setWalls(Environment.wallsForTemplate(Environment.defaultTemplateName()));
 		walls = new ArrayList<>(env.getWalls());
 	}
 
@@ -911,34 +912,42 @@ public class VisualGridApp extends Application {
 		VBox radioContent = new VBox(12, radioGrid, btnApplyModel);
 		VBox radioSection = createSection("Entorno y radio", radioContent);
 
-		Button tplRect = new Button("Plano rectangular");
-		Button tplRoom = new Button("Habitacion simple");
-		Button tplHouse = new Button("Casa en L");
-		styleSecondaryButton(tplRect);
-		styleSecondaryButton(tplRoom);
-		styleSecondaryButton(tplHouse);
+		ComboBox<String> cbTemplate = new ComboBox<>();
+		cbTemplate.getItems().setAll(Environment.builtInTemplateNames());
+		cbTemplate.getSelectionModel().select(Environment.defaultTemplateName());
+		styleInputField(cbTemplate);
 
-		tplRect.setOnAction(e -> {
-			env.setWalls(Environment.WALLS_TEMPLATE_House1);
+		Label templateInfo = new Label(buildTemplateSummary(cbTemplate.getValue()));
+		templateInfo.setWrapText(true);
+		templateInfo.setMaxWidth(Double.MAX_VALUE);
+		templateInfo.setStyle("-fx-padding: 10; -fx-background-color: #f7fafc; -fx-background-radius: 8; "
+				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 8; -fx-text-fill: #425466;");
+
+		cbTemplate.valueProperty().addListener((obs, old, selected) -> {
+			templateInfo.setText(buildTemplateSummary(selected));
+		});
+
+		Button btnLoadTemplate = new Button("Cargar escenario");
+		Button btnClearTemplate = new Button("Vaciar plano");
+		stylePrimaryButton(btnLoadTemplate);
+		styleSecondaryButton(btnClearTemplate);
+
+		btnLoadTemplate.setOnAction(e -> applyTemplate(cbTemplate.getValue()));
+		btnClearTemplate.setOnAction(e -> {
+			env.clearWalls();
 			walls = new ArrayList<>(env.getWalls());
 			repaintAll();
 		});
-		tplRoom.setOnAction(e -> {
-			env.setWalls(Environment.WALLS_TEMPLATE_2_MAT);
-			walls = new ArrayList<>(env.getWalls());
-			repaintAll();
-		});
-		tplHouse.setOnAction(e -> {
-			env.setWalls(Environment.WALLS_TEMPLATE_DRAWN);
-			walls = new ArrayList<>(env.getWalls());
-			repaintAll();
-		});
+
+		GridPane templateGrid = createFormGrid();
+		addFormRow(templateGrid, 0, "Escenario", cbTemplate);
+		addFormRow(templateGrid, 1, "Resumen", templateInfo);
 
 		GridPane templateButtons = createButtonGrid();
-		templateButtons.add(tplRect, 0, 0);
-		templateButtons.add(tplRoom, 1, 0);
-		templateButtons.add(tplHouse, 0, 1, 2, 1);
-		VBox templateSection = createSection("Plantillas", templateButtons);
+		templateButtons.add(btnLoadTemplate, 0, 0);
+		templateButtons.add(btnClearTemplate, 1, 0);
+		VBox templateContent = new VBox(12, templateGrid, templateButtons);
+		VBox templateSection = createSection("Plantillas", templateContent);
 
 		Button btnRays = new Button("Lanzar rayos");
 		Button btnWaves = new Button("Lanzar ondas");
@@ -1066,6 +1075,24 @@ public class VisualGridApp extends Application {
 		section.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
 				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 14;");
 		return section;
+	}
+
+	private void applyTemplate(String templateName) {
+		if (templateName == null) {
+			return;
+		}
+		activeTemplateName = templateName;
+		env.setWalls(Environment.wallsForTemplate(templateName));
+		walls = new ArrayList<>(env.getWalls());
+		repaintAll();
+	}
+
+	private String buildTemplateSummary(String templateName) {
+		if (templateName == null) {
+			return "Selecciona una plantilla para cargar un escenario interior.";
+		}
+		return Environment.templateDescription(templateName) + "\nParedes: "
+				+ Environment.wallsForTemplate(templateName).size() + " segmentos";
 	}
 
 	private Parent buildUI() {
@@ -1806,98 +1833,684 @@ public class VisualGridApp extends Application {
 	// ============================
 	private void showSummaryWindow() {
 		Stage paramStage = new Stage();
-		paramStage.setTitle("Resumen de simulacion");
+		paramStage.setTitle("Resumen de parametros");
 
-		StringBuilder sb = new StringBuilder();
-		sb.append("Resumen de simulacion\n\n");
+		CellResult hubCell = computeHubCellForSummary();
 
-		if (config.hasHub()) {
-			Hub h = config.getHub();
-			sb.append("Hub\n");
-			sb.append("Id: ").append(h.getId()).append("\n");
-			sb.append("Posicion: (").append(h.getX()).append(", ").append(h.getY()).append(")\n");
-			sb.append("Ganancia Rx: ").append(String.format(Locale.US, "%.1f dB", h.getGrDb())).append("\n");
-			sb.append("Polarizacion: ").append(String.format(Locale.US, "%.1f deg", h.getPolarizationDeg())).append("\n\n");
+		TabPane tabs = new TabPane();
+		tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+		tabs.getTabs().addAll(
+				createSummaryTab("General", buildGeneralSummaryPage(hubCell)),
+				createSummaryTab("Hub", buildHubSummaryPage(hubCell)),
+				createSummaryTab("Sensores", buildSensorsSummaryPage()),
+				createSummaryTab("Validacion", buildValidationSummaryPage(hubCell))
+		);
 
-			SimulationSettings hubSettings = buildReceiverSettings();
-			hubSettings.setReceiverGainDb(h.getGrDb());
-			hubSettings.setReceiverPolarizationDeg(h.getPolarizationDeg());
-			CellResult hubCell = IndoorWaveEngine.computeCell(env, config.getSensores(), h.getX(), h.getY(), hubSettings);
-
-			sb.append("Estado combinado en el hub\n");
-			sb.append("Modo: ").append(hubSettings.getPropagationMode()).append("\n");
-			sb.append("Potencia total: ").append(String.format(Locale.US, "%.2f dBm", hubCell.totalPowerDbm())).append("\n");
-			sb.append("Sensor dominante: ").append(hubCell.dominantSensorId()).append("\n");
-			sb.append("Potencia dominante: ").append(String.format(Locale.US, "%.2f dBm", hubCell.signalPowerDbm())).append("\n");
-			sb.append("Interferencia: ").append(String.format(Locale.US, "%.2f dBm", hubCell.interferencePowerDbm())).append("\n");
-			sb.append("SINR: ").append(String.format(Locale.US, "%.2f dB", hubCell.sinrDb())).append("\n");
-			sb.append("BER: ").append(String.format(Locale.US, "%.2e", hubCell.ber())).append("\n");
-			sb.append("Capacidad: ").append(String.format(Locale.US, "%.2f Mbps", hubCell.capacityMbps())).append("\n");
-			sb.append("Trayectorias: ").append(hubCell.pathCount()).append("\n\n");
-		}
-
-		if (config.getSensores().isEmpty()) {
-			sb.append("No hay sensores colocados.\n\n");
-		}
-
-		for (Sensor s : config.getSensores()) {
-			sb.append("Sensor ").append(s.getId()).append(" - ").append(s.getNombre()).append("\n");
-			sb.append("Posicion: (").append(s.getX()).append(", ").append(s.getY()).append(")\n");
-			sb.append("Potencia Tx: ").append(String.format(Locale.US, "%.1f dBm", s.getTxDbm())).append("\n");
-			sb.append("Ganancia: ").append(String.format(Locale.US, "%.1f dB", s.getTxGainDb())).append("\n");
-			sb.append("Patron: ").append(String.format(Locale.US, "%.2f", s.getPatternSharpness())).append("\n");
-			sb.append("Polarizacion: ").append(String.format(Locale.US, "%.1f deg", s.getPolarizationDeg())).append("\n");
-
-			if (config.hasHub()) {
-				Hub h = config.getHub();
-				SimulationSettings singleSensorSettings = buildReceiverSettings();
-				singleSensorSettings.setReceiverGainDb(h.getGrDb());
-				singleSensorSettings.setReceiverPolarizationDeg(h.getPolarizationDeg());
-				CellResult singleSensorLink = IndoorWaveEngine.computeCell(env, List.of(s), h.getX(), h.getY(),
-						singleSensorSettings);
-
-				sb.append("Distancia al hub: ")
-						.append(String.format(Locale.US, "%.2f m", Math.hypot(h.getX() - s.getX(), h.getY() - s.getY())))
-						.append("\n");
-				sb.append("Potencia recibida: ")
-						.append(String.format(Locale.US, "%.2f dBm", singleSensorLink.totalPowerDbm())).append("\n");
-				sb.append("SNR: ").append(String.format(Locale.US, "%.2f dB", singleSensorLink.snrDb())).append("\n");
-				sb.append("Margen de enlace: ")
-						.append(String.format(Locale.US, "%.2f dB", singleSensorLink.linkMarginDb())).append("\n");
-				sb.append("BER: ").append(String.format(Locale.US, "%.2e", singleSensorLink.ber())).append("\n");
-				sb.append("Capacidad: ")
-						.append(String.format(Locale.US, "%.2f Mbps", singleSensorLink.capacityMbps())).append("\n");
-				sb.append("Trayectorias: ").append(singleSensorLink.pathCount()).append("\n");
-			}
-
-			sb.append("\n");
-		}
-
-		sb.append("Parametros globales\n");
-		sb.append("Frecuencia: ").append(String.format(Locale.US, "%.0f MHz", env.getFreqMHz())).append("\n");
-		sb.append("Ancho de banda: ").append(String.format(Locale.US, "%.0f Hz", env.getBandwidthHz())).append("\n");
-		sb.append("Figura de ruido: ").append(String.format(Locale.US, "%.1f dB", env.getNoiseFigureDb())).append("\n");
-		sb.append("Suelo de ruido: ").append(String.format(Locale.US, "%.2f dBm", env.noiseFloorDbm())).append("\n");
-		sb.append("Modo: ").append(simulationSettings.getPropagationMode()).append("\n");
-		sb.append("Metrica del mapa: ").append(simulationSettings.getMapMetric()).append("\n");
-		sb.append("Fading: ").append(simulationSettings.getFadingModel()).append("\n");
-		sb.append("Exponente indoor: ").append(String.format(Locale.US, "%.2f", simulationSettings.getLogDistanceExponent()))
-				.append("\n");
-		sb.append("Difraccion: ").append(simulationSettings.isDiffractionEnabled() ? "Activa" : "Inactiva")
-				.append("\n");
-		sb.append("Dispersion: ").append(simulationSettings.isScatteringEnabled() ? "Activa" : "Inactiva")
-				.append("\n");
-		sb.append("Culling: ").append(String.format(Locale.US, "%.0f dBm", simulationSettings.getCullingThresholdDbm()))
-				.append("\n");
-
-		TextArea area = new TextArea(sb.toString());
-		area.setEditable(false);
-		area.setWrapText(true);
-		area.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
-
-		Scene scene = new Scene(area, 560, 700);
+		Scene scene = new Scene(tabs, 920, 740);
 		paramStage.setScene(scene);
 		paramStage.show();
+	}
+
+	private Tab createSummaryTab(String title, Node content) {
+		ScrollPane scroll = new ScrollPane(content);
+		scroll.setFitToWidth(true);
+		scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+		scroll.setStyle("-fx-background-color: #f4f6f8; -fx-background: #f4f6f8;");
+
+		Tab tab = new Tab(title, scroll);
+		tab.setClosable(false);
+		return tab;
+	}
+
+	private VBox buildGeneralSummaryPage(CellResult hubCell) {
+		VBox page = createSummaryPage(
+				"Resumen de simulacion",
+				"Vista global del escenario, del modelo de propagacion y de los indicadores principales."
+		);
+
+		GridPane scenarioGrid = createSummaryGrid();
+		addSummaryRow(scenarioGrid, 0, "Escenario activo", currentScenarioName());
+		addSummaryRow(scenarioGrid, 1, "Descripcion", currentScenarioDescription());
+		addSummaryRow(scenarioGrid, 2, "Paredes", Integer.toString(env.getWalls().size()));
+		addSummaryRow(scenarioGrid, 3, "Materiales", buildMaterialBreakdown());
+		addSummaryRow(scenarioGrid, 4, "Sensores", Integer.toString(config.getSensores().size()));
+		addSummaryRow(scenarioGrid, 5, "Hub", config.hasHub()
+				? config.getHub().getId() + " en (" + config.getHub().getX() + ", " + config.getHub().getY() + ")"
+				: "No colocado");
+		page.getChildren().add(createSummaryCard("Escenario", "Configuracion actual del plano interior.", scenarioGrid));
+
+		FlowPane quickMetrics = new FlowPane(12, 12);
+		quickMetrics.getChildren().addAll(
+				createMetricTile("Suelo de ruido", formatDbm(env.noiseFloorDbm()), "#0f766e"),
+				createMetricTile("Sensibilidad Rx", formatDbm(simulationSettings.getReceiverSensitivityDbm()), "#7c3aed"),
+				createMetricTile("Longitud de onda", formatMeters(env.wavelengthMeters()), "#1d4ed8"),
+				createMetricTile("Alpha medio", formatDb(env.getAlphaDbPerMeter()) + "/m", "#92400e")
+		);
+		if (hubCell != null) {
+			quickMetrics.getChildren().addAll(
+					createMetricTile("SINR en hub", formatDb(hubCell.sinrDb()), "#2563eb"),
+					createMetricTile("Capacidad", formatMbps(hubCell.capacityMbps()), "#b45309")
+			);
+		}
+		page.getChildren().add(createSummaryCard("Indicadores rapidos", "", quickMetrics));
+
+		GridPane radioGrid = createSummaryGrid();
+		addSummaryRow(radioGrid, 0, "Frecuencia", formatFrequency(env.getFreqMHz()));
+		addSummaryRow(radioGrid, 1, "Longitud de onda", formatMeters(env.wavelengthMeters()));
+		addSummaryRow(radioGrid, 2, "Ancho de banda", formatHertz(env.getBandwidthHz()));
+		addSummaryRow(radioGrid, 3, "Figura de ruido", formatDb(env.getNoiseFigureDb()));
+		addSummaryRow(radioGrid, 4, "Suelo de ruido", formatDbm(env.noiseFloorDbm()));
+		addSummaryRow(radioGrid, 5, "Atenuacion por metro", formatDb(env.getAlphaDbPerMeter()) + "/m");
+		addSummaryRow(radioGrid, 6, "Ganancia de sistema", formatDb(env.getSystemGainDb()));
+		addSummaryRow(radioGrid, 7, "Sensibilidad Rx", formatDbm(simulationSettings.getReceiverSensitivityDbm()));
+		page.getChildren().add(createSummaryCard("Radio y ruido", "Parametros fisicos que condicionan todas las metricas.", radioGrid));
+		page.getChildren().add(createSummaryCard("Referencias de calculo",
+				"Esta guia resume como interpretar los numeros mas importantes del simulador.",
+				createInfoLabel(
+						"Ruido = -174 dBm/Hz + 10 log10(BW) + NF. " +
+						"SNR = senal / ruido. " +
+						"SINR = senal / (ruido + interferencia). " +
+						"Capacidad = BW * log2(1 + SINR lineal). " +
+						"Margen = senal util - sensibilidad del receptor.")));
+
+		GridPane modelGrid = createSummaryGrid();
+		addSummaryRow(modelGrid, 0, "Modo de propagacion", simulationSettings.getPropagationMode().toString());
+		addSummaryRow(modelGrid, 1, "Metrica del mapa", simulationSettings.getMapMetric().toString());
+		addSummaryRow(modelGrid, 2, "Fading", simulationSettings.getFadingModel().toString());
+		addSummaryRow(modelGrid, 3, "Exponente indoor", String.format(Locale.US, "%.2f", simulationSettings.getLogDistanceExponent()));
+		addSummaryRow(modelGrid, 4, "K-factor Rician", formatDb(simulationSettings.getRicianKFactorDb()));
+		addSummaryRow(modelGrid, 5, "Difraccion", simulationSettings.isDiffractionEnabled() ? "Activa" : "Inactiva");
+		addSummaryRow(modelGrid, 6, "Dispersion", simulationSettings.isScatteringEnabled() ? "Activa" : "Inactiva");
+		addSummaryRow(modelGrid, 7, "Calculo en paralelo", simulationSettings.isParallelComputation() ? "Si" : "No");
+		addSummaryRow(modelGrid, 8, "Umbral de culling", formatDbm(simulationSettings.getCullingThresholdDbm()));
+		addSummaryRow(modelGrid, 9, "Max. reflexiones", Integer.toString(simulationSettings.getMaxReflectionPaths()));
+		addSummaryRow(modelGrid, 10, "Max. difracciones", Integer.toString(simulationSettings.getMaxDiffractionPaths()));
+		addSummaryRow(modelGrid, 11, "Max. dispersiones", Integer.toString(simulationSettings.getMaxScatteringPaths()));
+		page.getChildren().add(createSummaryCard("Modelo de propagacion", "Resumen del motor de simulacion que alimenta el heatmap y los enlaces.", modelGrid));
+
+		return page;
+	}
+
+	private VBox buildHubSummaryPage(CellResult hubCell) {
+		VBox page = createSummaryPage(
+				"Resumen del hub",
+				"Estado combinado en el punto receptor. Si hay varios sensores, la senal dominante se compara con la interferencia del resto."
+		);
+
+		if (!config.hasHub()) {
+			page.getChildren().add(createSummaryCard("Hub no disponible",
+					"Coloca un hub en el plano para ver el resumen combinado y las comprobaciones del enlace.",
+					createInfoLabel("Ahora mismo solo hay resumen global del escenario y de los sensores.")));
+			return page;
+		}
+
+		Hub hub = config.getHub();
+		GridPane hubGrid = createSummaryGrid();
+		addSummaryRow(hubGrid, 0, "Id", hub.getId());
+		addSummaryRow(hubGrid, 1, "Nombre", hub.getNombre());
+		addSummaryRow(hubGrid, 2, "Posicion", "(" + hub.getX() + ", " + hub.getY() + ")");
+		addSummaryRow(hubGrid, 3, "Ganancia Rx", formatDb(hub.getGrDb()));
+		addSummaryRow(hubGrid, 4, "Polarizacion", formatDeg(hub.getPolarizationDeg()));
+		addSummaryRow(hubGrid, 5, "Sensibilidad", formatDbm(simulationSettings.getReceiverSensitivityDbm()));
+		page.getChildren().add(createSummaryCard("Configuracion del receptor", "", hubGrid));
+
+		if (hubCell == null) {
+			page.getChildren().add(createSummaryCard("Sin datos de enlace",
+					"No hay sensores activos o no se ha podido calcular la celda del hub.",
+					createInfoLabel("Anade al menos un sensor para ver la mezcla de potencia, SINR y capacidad.")));
+			return page;
+		}
+
+		FlowPane metricStrip = new FlowPane(12, 12);
+		metricStrip.getChildren().addAll(
+				createMetricTile("Potencia total", formatDbm(hubCell.totalPowerDbm()), "#1d4ed8"),
+				createMetricTile("SINR", formatDb(hubCell.sinrDb()), "#0f766e"),
+				createMetricTile("BER", formatBer(hubCell.ber()), "#7c3aed"),
+				createMetricTile("Capacidad", formatMbps(hubCell.capacityMbps()), "#b45309"),
+				createMetricTile("Margen", formatDb(hubCell.linkMarginDb()), "#be123c")
+		);
+		page.getChildren().add(createSummaryCard("Estado rapido", "Lectura directa de las metricas mas importantes en el hub.", metricStrip));
+
+		GridPane metricsGrid = createSummaryGrid();
+		addSummaryRow(metricsGrid, 0, "Sensor dominante", hubCell.dominantSensorId());
+		addSummaryRow(metricsGrid, 1, "Potencia total", formatDbm(hubCell.totalPowerDbm()));
+		addSummaryRow(metricsGrid, 2, "Senal util", formatDbm(hubCell.signalPowerDbm()));
+		addSummaryRow(metricsGrid, 3, "Interferencia", formatDbm(hubCell.interferencePowerDbm()));
+		addSummaryRow(metricsGrid, 4, "Ruido", formatDbm(hubCell.noiseDbm()));
+		addSummaryRow(metricsGrid, 5, "SNR", formatDb(hubCell.snrDb()));
+		addSummaryRow(metricsGrid, 6, "SINR", formatDb(hubCell.sinrDb()));
+		addSummaryRow(metricsGrid, 7, "BER", formatBer(hubCell.ber()));
+		addSummaryRow(metricsGrid, 8, "Capacidad", formatMbps(hubCell.capacityMbps()));
+		addSummaryRow(metricsGrid, 9, "Margen de enlace", formatDb(hubCell.linkMarginDb()));
+		addSummaryRow(metricsGrid, 10, "Fase del campo", formatDeg(Math.toDegrees(hubCell.fieldPhaseRad())));
+		addSummaryRow(metricsGrid, 11, "Trayectorias consideradas", Integer.toString(hubCell.pathCount()));
+		page.getChildren().add(createSummaryCard("Detalle del enlace combinado", "", metricsGrid));
+
+		page.getChildren().add(createSummaryCard("Trayectorias dominantes",
+				"Las trayectorias se ordenan por potencia recibida. Esto ayuda a entender si manda la linea directa, una reflexion o la difraccion.",
+				createContributionList(hubCell.contributions(), 8)));
+
+		return page;
+	}
+
+	private VBox buildSensorsSummaryPage() {
+		VBox page = createSummaryPage(
+				"Resumen por sensor",
+				"Cada bloque combina configuracion de antena y, si hay hub, el enlace individual hasta el receptor."
+		);
+
+		if (config.getSensores().isEmpty()) {
+			page.getChildren().add(createSummaryCard("Sin sensores",
+					"No hay dispositivos emisores colocados en el plano.",
+					createInfoLabel("Anade un sensor para ver potencia transmitida, patron y metricas de enlace.")));
+			return page;
+		}
+
+		for (Sensor sensor : config.getSensores()) {
+			VBox sensorContent = new VBox(12);
+
+			GridPane configGrid = createSummaryGrid();
+			addSummaryRow(configGrid, 0, "Id", sensor.getId());
+			addSummaryRow(configGrid, 1, "Nombre", sensor.getNombre());
+			addSummaryRow(configGrid, 2, "Posicion", "(" + sensor.getX() + ", " + sensor.getY() + ")");
+			addSummaryRow(configGrid, 3, "Antena", sensor.getAntennaType().toString());
+			addSummaryRow(configGrid, 4, "Orientacion", formatDeg(sensor.getOrientationDeg()));
+			addSummaryRow(configGrid, 5, "Apertura", formatDeg(sensor.getBeamwidthDeg()));
+			addSummaryRow(configGrid, 6, "Potencia Tx", formatDbm(sensor.getTxDbm()));
+			addSummaryRow(configGrid, 7, "Ganancia Tx", formatDb(sensor.getTxGainDb()));
+			addSummaryRow(configGrid, 8, "Patron", String.format(Locale.US, "%.2f", sensor.getPatternSharpness()));
+			addSummaryRow(configGrid, 9, "Polarizacion", formatDeg(sensor.getPolarizationDeg()));
+			sensorContent.getChildren().add(createSummaryCard("Configuracion", "", configGrid));
+
+			if (config.hasHub()) {
+				CellResult linkCell = computeSensorLinkForSummary(sensor);
+				FlowPane linkStrip = new FlowPane(12, 12);
+				linkStrip.getChildren().addAll(
+						createMetricTile("Potencia Rx", formatDbm(linkCell.totalPowerDbm()), "#1d4ed8"),
+						createMetricTile("SNR", formatDb(linkCell.snrDb()), "#0f766e"),
+						createMetricTile("Margen", formatDb(linkCell.linkMarginDb()), "#be123c"),
+						createMetricTile("Capacidad", formatMbps(linkCell.capacityMbps()), "#b45309")
+				);
+				sensorContent.getChildren().add(createSummaryCard("Enlace con el hub", "", linkStrip));
+
+				GridPane linkGrid = createSummaryGrid();
+				addSummaryRow(linkGrid, 0, "Distancia al hub",
+						formatMeters(Math.hypot(config.getHub().getX() - sensor.getX(), config.getHub().getY() - sensor.getY())));
+				addSummaryRow(linkGrid, 1, "Potencia recibida", formatDbm(linkCell.totalPowerDbm()));
+				addSummaryRow(linkGrid, 2, "Ruido", formatDbm(linkCell.noiseDbm()));
+				addSummaryRow(linkGrid, 3, "SNR", formatDb(linkCell.snrDb()));
+				addSummaryRow(linkGrid, 4, "SINR", formatDb(linkCell.sinrDb()));
+				addSummaryRow(linkGrid, 5, "BER", formatBer(linkCell.ber()));
+				addSummaryRow(linkGrid, 6, "Capacidad", formatMbps(linkCell.capacityMbps()));
+				addSummaryRow(linkGrid, 7, "Margen de enlace", formatDb(linkCell.linkMarginDb()));
+				addSummaryRow(linkGrid, 8, "Trayectorias", Integer.toString(linkCell.pathCount()));
+				addSummaryRow(linkGrid, 9, "Trayectoria mas fuerte",
+						linkCell.contributions().isEmpty() ? "Sin trayectorias" : describeContribution(linkCell.contributions().getFirst()));
+				sensorContent.getChildren().add(createSummaryCard("Detalle del enlace", "", linkGrid));
+
+				sensorContent.getChildren().add(createSummaryCard("Trayectorias del sensor",
+						"Vista de las contribuciones individuales que alcanzan el hub desde este emisor.",
+						createContributionList(linkCell.contributions(), 6)));
+			} else {
+				sensorContent.getChildren().add(createSummaryCard("Enlace con el hub",
+						"No hay hub colocado, por lo que solo se muestra la configuracion del emisor.",
+						createInfoLabel("Coloca un hub para ver potencia recibida, BER, capacidad y margen de enlace.")));
+			}
+
+			page.getChildren().add(createSummaryCard(
+					sensor.getId() + " - " + sensor.getNombre(),
+					"Resumen del emisor y su comportamiento frente al receptor activo.",
+					sensorContent));
+		}
+
+		return page;
+	}
+
+	private VBox buildValidationSummaryPage(CellResult hubCell) {
+		VBox page = createSummaryPage(
+				"Validacion numerica",
+				"Estas comprobaciones contrastan lo que ensena la interfaz con las mismas formulas del motor: ruido termico, SNR, SINR, BER, Shannon y margen."
+		);
+
+		page.getChildren().add(createSummaryCard("Criterio de validacion",
+				"Cada fila compara valor mostrado frente a valor esperado. Si ves todo en OK, la ventana esta reflejando bien los calculos del motor.",
+				createInfoLabel("En modo Ondas, la potencia total es coherente en fase, pero la interferencia que usa la SINR se mantiene agregada de forma incoherente, igual que en el motor.")));
+
+		page.getChildren().add(createValidationCard("Entorno y radio", buildEnvironmentChecks()));
+
+		if (hubCell != null) {
+			page.getChildren().add(createValidationCard("Hub combinado", buildCellChecks(hubCell, buildReceiverSettings())));
+			List<SummaryCheck> aggregateChecks = buildHubAggregateChecks(hubCell);
+			if (!aggregateChecks.isEmpty()) {
+				page.getChildren().add(createValidationCard("Mezcla de sensores", aggregateChecks));
+			}
+		}
+
+		if (!config.hasHub()) {
+			page.getChildren().add(createSummaryCard("Sin hub",
+					"No se pueden validar enlaces individuales porque falta el receptor.",
+					createInfoLabel("Coloca un hub para activar la validacion de SNR, BER, capacidad y margen por enlace.")));
+			return page;
+		}
+
+		for (Sensor sensor : config.getSensores()) {
+			page.getChildren().add(createValidationCard(
+					sensor.getId() + " - " + sensor.getNombre(),
+					buildCellChecks(computeSensorLinkForSummary(sensor), buildReceiverSettings())));
+		}
+
+		return page;
+	}
+
+	private VBox createSummaryPage(String title, String subtitle) {
+		Label header = new Label(title);
+		header.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #16212c;");
+
+		Label sub = new Label(subtitle);
+		sub.setWrapText(true);
+		sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #5f6b76;");
+
+		VBox page = new VBox(16, header, sub);
+		page.setPadding(new Insets(18));
+		page.setFillWidth(true);
+		page.setStyle("-fx-background-color: #f4f6f8;");
+		return page;
+	}
+
+	private VBox createSummaryCard(String title, String subtitle, Node content) {
+		Label header = new Label(title);
+		header.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #16212c;");
+
+		VBox box = new VBox(12);
+		box.getChildren().add(header);
+
+		if (subtitle != null && !subtitle.isBlank()) {
+			Label sub = new Label(subtitle);
+			sub.setWrapText(true);
+			sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #5f6b76;");
+			box.getChildren().add(sub);
+		}
+
+		box.getChildren().add(content);
+		box.setPadding(new Insets(14));
+		box.setFillWidth(true);
+		box.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 14;");
+		return box;
+	}
+
+	private GridPane createSummaryGrid() {
+		GridPane grid = new GridPane();
+		grid.setHgap(12);
+		grid.setVgap(10);
+
+		ColumnConstraints labelCol = new ColumnConstraints();
+		labelCol.setMinWidth(180);
+		labelCol.setPrefWidth(190);
+		ColumnConstraints valueCol = new ColumnConstraints();
+		valueCol.setHgrow(Priority.ALWAYS);
+		valueCol.setFillWidth(true);
+		grid.getColumnConstraints().addAll(labelCol, valueCol);
+		return grid;
+	}
+
+	private void addSummaryRow(GridPane grid, int row, String labelText, String valueText) {
+		Label label = new Label(labelText);
+		label.setWrapText(true);
+		label.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #31414f;");
+
+		Label value = new Label(valueText);
+		value.setWrapText(true);
+		value.setMaxWidth(Double.MAX_VALUE);
+		value.setStyle("-fx-font-size: 12px; -fx-text-fill: #102a43;");
+
+		grid.add(label, 0, row);
+		grid.add(value, 1, row);
+	}
+
+	private VBox createMetricTile(String labelText, String valueText, String accentColor) {
+		Label label = new Label(labelText);
+		label.setWrapText(true);
+		label.setStyle("-fx-font-size: 11px; -fx-text-fill: #5f6b76;");
+
+		Label value = new Label(valueText);
+		value.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + accentColor + ";");
+
+		VBox tile = new VBox(6, label, value);
+		tile.setPadding(new Insets(12));
+		tile.setPrefWidth(150);
+		tile.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 12; "
+				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 12;");
+		return tile;
+	}
+
+	private Label createInfoLabel(String text) {
+		Label label = new Label(text);
+		label.setWrapText(true);
+		label.setStyle("-fx-font-size: 12px; -fx-text-fill: #425466;");
+		return label;
+	}
+
+	private VBox createContributionList(List<PathContribution> contributions, int limit) {
+		VBox box = new VBox(8);
+		if (contributions.isEmpty()) {
+			box.getChildren().add(createInfoLabel("Sin trayectorias registradas para este punto."));
+			return box;
+		}
+
+		int count = Math.min(limit, contributions.size());
+		for (int i = 0; i < count; i++) {
+			PathContribution contribution = contributions.get(i);
+			Label item = new Label((i + 1) + ". " + describeContribution(contribution));
+			item.setWrapText(true);
+			item.setStyle("-fx-font-size: 12px; -fx-text-fill: #102a43;");
+			box.getChildren().add(item);
+		}
+		return box;
+	}
+
+	private String describeContribution(PathContribution contribution) {
+		return String.format(Locale.US,
+				"%s | %.1f dBm | %.2f m | ganancia %.1f dB | perdidas extra %.1f dB",
+				contribution.type(),
+				contribution.powerDbm(),
+				contribution.distanceMeters(),
+				contribution.txGainDb(),
+				contribution.extraLossDb());
+	}
+
+	private VBox createValidationCard(String title, List<SummaryCheck> checks) {
+		GridPane grid = new GridPane();
+		grid.setHgap(10);
+		grid.setVgap(8);
+
+		ColumnConstraints statusCol = new ColumnConstraints();
+		statusCol.setMinWidth(70);
+		ColumnConstraints labelCol = new ColumnConstraints();
+		labelCol.setMinWidth(170);
+		ColumnConstraints actualCol = new ColumnConstraints();
+		actualCol.setHgrow(Priority.ALWAYS);
+		ColumnConstraints expectedCol = new ColumnConstraints();
+		expectedCol.setHgrow(Priority.ALWAYS);
+		grid.getColumnConstraints().addAll(statusCol, labelCol, actualCol, expectedCol);
+
+		addValidationHeader(grid, 0, "Estado");
+		addValidationHeader(grid, 1, "Parametro");
+		addValidationHeader(grid, 2, "Mostrado");
+		addValidationHeader(grid, 3, "Esperado");
+
+		int row = 1;
+		for (SummaryCheck check : checks) {
+			Label status = new Label(check.ok() ? "OK" : "Revisar");
+			status.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: white; "
+					+ "-fx-background-color: " + (check.ok() ? "#0f766e" : "#b91c1c")
+					+ "; -fx-background-radius: 999; -fx-padding: 4 8 4 8;");
+
+			Label label = new Label(check.label());
+			label.setStyle("-fx-font-size: 12px; -fx-text-fill: #102a43;");
+
+			Label actual = new Label(check.actual());
+			actual.setWrapText(true);
+			actual.setStyle("-fx-font-size: 12px; -fx-text-fill: #102a43;");
+
+			Label expected = new Label(check.expected());
+			expected.setWrapText(true);
+			expected.setStyle("-fx-font-size: 12px; -fx-text-fill: #425466;");
+
+			grid.add(status, 0, row);
+			grid.add(label, 1, row);
+			grid.add(actual, 2, row);
+			grid.add(expected, 3, row);
+			row++;
+		}
+
+		return createSummaryCard(title,
+				"Comprobacion interna de formulas del motor para este punto de recepcion.",
+				grid);
+	}
+
+	private void addValidationHeader(GridPane grid, int column, String text) {
+		Label label = new Label(text);
+		label.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #5f6b76;");
+		grid.add(label, column, 0);
+	}
+
+	private List<SummaryCheck> buildCellChecks(CellResult cell, SimulationSettings settings) {
+		List<SummaryCheck> checks = new ArrayList<>();
+
+		double expectedNoise = env.noiseFloorDbm();
+		double expectedSnr = cell.signalPowerDbm() - cell.noiseDbm();
+		double signalMw = Propagation.dbmToMilliwatt(cell.signalPowerDbm());
+		double noiseMw = Propagation.dbmToMilliwatt(cell.noiseDbm());
+		double interferenceMw = Propagation.dbmToMilliwatt(cell.interferencePowerDbm());
+		double expectedSinr = Propagation.linearRatioToDb(signalMw / Math.max(noiseMw + interferenceMw, 1e-15));
+		double expectedBer = Propagation.bpskBer(cell.sinrDb());
+		double expectedCapacity = Propagation.shannonCapacityMbps(cell.sinrDb(), env.getBandwidthHz());
+		double expectedMargin = cell.signalPowerDbm() - settings.getReceiverSensitivityDbm();
+
+		checks.add(new SummaryCheck("Suelo de ruido", formatDbm(cell.noiseDbm()), formatDbm(expectedNoise),
+				nearlyEqual(cell.noiseDbm(), expectedNoise, 0.01)));
+		checks.add(new SummaryCheck("SNR", formatDb(cell.snrDb()), formatDb(expectedSnr),
+				nearlyEqual(cell.snrDb(), expectedSnr, 0.01)));
+		checks.add(new SummaryCheck("SINR", formatDb(cell.sinrDb()), formatDb(expectedSinr),
+				nearlyEqual(cell.sinrDb(), expectedSinr, 0.01)));
+		checks.add(new SummaryCheck("BER", formatBer(cell.ber()), formatBer(expectedBer),
+				nearlyEqual(cell.ber(), expectedBer, 1e-12)));
+		checks.add(new SummaryCheck("Capacidad", formatMbps(cell.capacityMbps()), formatMbps(expectedCapacity),
+				nearlyEqual(cell.capacityMbps(), expectedCapacity, 0.01)));
+		checks.add(new SummaryCheck("Margen", formatDb(cell.linkMarginDb()), formatDb(expectedMargin),
+				nearlyEqual(cell.linkMarginDb(), expectedMargin, 0.01)));
+
+		return checks;
+	}
+
+	private List<SummaryCheck> buildEnvironmentChecks() {
+		List<SummaryCheck> checks = new ArrayList<>();
+
+		double expectedFrequencyHz = env.getFreqMHz() * 1e6;
+		double expectedWavelength = Environment.SPEED_OF_LIGHT_MS / expectedFrequencyHz;
+		double expectedNoise = -174.0 + 10.0 * Math.log10(env.getBandwidthHz()) + env.getNoiseFigureDb();
+
+		checks.add(new SummaryCheck("Frecuencia central", formatFrequency(env.getFreqMHz()),
+				formatFrequency(expectedFrequencyHz / 1e6),
+				nearlyEqual(env.getFreqMHz(), expectedFrequencyHz / 1e6, 1e-9)));
+		checks.add(new SummaryCheck("Longitud de onda", formatMeters(env.wavelengthMeters()),
+				formatMeters(expectedWavelength),
+				nearlyEqual(env.wavelengthMeters(), expectedWavelength, 1e-9)));
+		checks.add(new SummaryCheck("Suelo de ruido", formatDbm(env.noiseFloorDbm()),
+				formatDbm(expectedNoise),
+				nearlyEqual(env.noiseFloorDbm(), expectedNoise, 0.01)));
+
+		return checks;
+	}
+
+	private List<SummaryCheck> buildHubAggregateChecks(CellResult hubCell) {
+		if (!config.hasHub() || config.getSensores().isEmpty()) {
+			return List.of();
+		}
+
+		List<SummaryCheck> checks = new ArrayList<>();
+		double dominantPowerMw = 0.0;
+		double interferenceMw = 0.0;
+		String dominantSensorId = "Sin sensor";
+
+		for (Sensor sensor : config.getSensores()) {
+			CellResult sensorLink = computeSensorLinkForSummary(sensor);
+			double sensorPowerMw = Propagation.dbmToMilliwatt(sensorLink.totalPowerDbm());
+
+			if (sensorPowerMw > dominantPowerMw) {
+				interferenceMw += dominantPowerMw;
+				dominantPowerMw = sensorPowerMw;
+				dominantSensorId = sensor.getId();
+			} else {
+				interferenceMw += sensorPowerMw;
+			}
+		}
+
+		double expectedSignalDbm = Propagation.milliwattToDbm(Math.max(dominantPowerMw, 1e-15));
+		double expectedInterferenceDbm = Propagation.milliwattToDbm(Math.max(interferenceMw, 1e-15));
+
+		checks.add(new SummaryCheck("Sensor dominante", hubCell.dominantSensorId(),
+				dominantSensorId,
+				Objects.equals(hubCell.dominantSensorId(), dominantSensorId)));
+		checks.add(new SummaryCheck("Senal dominante", formatDbm(hubCell.signalPowerDbm()),
+				formatDbm(expectedSignalDbm),
+				nearlyEqual(hubCell.signalPowerDbm(), expectedSignalDbm, 0.01)));
+		checks.add(new SummaryCheck("Interferencia agregada", formatDbm(hubCell.interferencePowerDbm()),
+				formatDbm(expectedInterferenceDbm),
+				nearlyEqual(hubCell.interferencePowerDbm(), expectedInterferenceDbm, 0.01)));
+
+		return checks;
+	}
+
+	private CellResult computeHubCellForSummary() {
+		if (!config.hasHub()) {
+			return null;
+		}
+		Hub hub = config.getHub();
+		SimulationSettings hubSettings = buildReceiverSettings();
+		hubSettings.setReceiverGainDb(hub.getGrDb());
+		hubSettings.setReceiverPolarizationDeg(hub.getPolarizationDeg());
+		return IndoorWaveEngine.computeCell(env, config.getSensores(), hub.getX(), hub.getY(), hubSettings);
+	}
+
+	private CellResult computeSensorLinkForSummary(Sensor sensor) {
+		Hub hub = config.getHub();
+		SimulationSettings singleSensorSettings = buildReceiverSettings();
+		singleSensorSettings.setReceiverGainDb(hub.getGrDb());
+		singleSensorSettings.setReceiverPolarizationDeg(hub.getPolarizationDeg());
+		return IndoorWaveEngine.computeCell(env, List.of(sensor), hub.getX(), hub.getY(), singleSensorSettings);
+	}
+
+	private String buildMaterialBreakdown() {
+		if (env.getWalls().isEmpty()) {
+			return "Sin paredes";
+		}
+
+		Map<String, Integer> counts = new LinkedHashMap<>();
+		for (Wall wall : env.getWalls()) {
+			String name = (wall.getMaterial() == null) ? "Sin material" : wall.getMaterial().getName();
+			counts.merge(name, 1, Integer::sum);
+		}
+
+		List<String> parts = new ArrayList<>();
+		int shown = 0;
+		for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+			parts.add(entry.getKey() + ": " + entry.getValue());
+			shown++;
+			if (shown >= 4 && counts.size() > shown) {
+				parts.add("...");
+				break;
+			}
+		}
+		return String.join(", ", parts);
+	}
+
+	private boolean nearlyEqual(double actual, double expected, double tolerance) {
+		return Math.abs(actual - expected) <= Math.max(tolerance, Math.abs(expected) * 1e-6);
+	}
+
+	private String currentScenarioName() {
+		if (env.getWalls().isEmpty()) {
+			return "Plano vacio";
+		}
+		if (matchesActiveTemplate()) {
+			return activeTemplateName;
+		}
+		return "Escenario personalizado";
+	}
+
+	private String currentScenarioDescription() {
+		if (env.getWalls().isEmpty()) {
+			return "No hay paredes cargadas en el entorno actual.";
+		}
+		if (matchesActiveTemplate()) {
+			return Environment.templateDescription(activeTemplateName);
+		}
+		return "El plano actual se ha modificado respecto a la plantilla original y se trata como escenario personalizado.";
+	}
+
+	private boolean matchesActiveTemplate() {
+		if (activeTemplateName == null || activeTemplateName.isBlank()) {
+			return false;
+		}
+
+		List<Wall> currentWalls = env.getWalls();
+		List<Wall> templateWalls = Environment.wallsForTemplate(activeTemplateName);
+		if (currentWalls.size() != templateWalls.size()) {
+			return false;
+		}
+
+		for (int i = 0; i < currentWalls.size(); i++) {
+			if (!sameWall(currentWalls.get(i), templateWalls.get(i))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean sameWall(Wall left, Wall right) {
+		if (left == null || right == null) {
+			return left == right;
+		}
+
+		String leftMaterial = (left.getMaterial() == null) ? "" : left.getMaterial().getName();
+		String rightMaterial = (right.getMaterial() == null) ? "" : right.getMaterial().getName();
+
+		return nearlyEqual(left.getX1(), right.getX1(), 1e-9)
+				&& nearlyEqual(left.getY1(), right.getY1(), 1e-9)
+				&& nearlyEqual(left.getX2(), right.getX2(), 1e-9)
+				&& nearlyEqual(left.getY2(), right.getY2(), 1e-9)
+				&& nearlyEqual(left.getThicknessCm(), right.getThicknessCm(), 1e-9)
+				&& Objects.equals(leftMaterial, rightMaterial);
+	}
+
+	private String formatDbm(double value) {
+		return String.format(Locale.US, "%.2f dBm", value);
+	}
+
+	private String formatDb(double value) {
+		return String.format(Locale.US, "%.2f dB", value);
+	}
+
+	private String formatMbps(double value) {
+		return String.format(Locale.US, "%.2f Mbps", value);
+	}
+
+	private String formatBer(double value) {
+		return String.format(Locale.US, "%.2e", value);
+	}
+
+	private String formatMeters(double value) {
+		return String.format(Locale.US, "%.2f m", value);
+	}
+
+	private String formatDeg(double value) {
+		return String.format(Locale.US, "%.1f deg", value);
+	}
+
+	private String formatHertz(double value) {
+		double absValue = Math.abs(value);
+		if (absValue >= 1e9) {
+			return String.format(Locale.US, "%.2f GHz", value / 1e9);
+		}
+		if (absValue >= 1e6) {
+			return String.format(Locale.US, "%.2f MHz", value / 1e6);
+		}
+		if (absValue >= 1e3) {
+			return String.format(Locale.US, "%.2f kHz", value / 1e3);
+		}
+		return String.format(Locale.US, "%.0f Hz", value);
+	}
+
+	private String formatFrequency(double freqMHz) {
+		if (freqMHz >= 1000.0) {
+			return String.format(Locale.US, "%.2f GHz (%.0f MHz)", freqMHz / 1000.0, freqMHz);
+		}
+		return String.format(Locale.US, "%.0f MHz", freqMHz);
+	}
+
+	private record SummaryCheck(String label, String actual, String expected, boolean ok) {
 	}
 
 	private void showParametersWindow() {
