@@ -43,6 +43,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -94,6 +95,7 @@ public class VisualGridApp extends Application {
 	private Environment env; // parámetros físicos + paredes (materiales)
 	private List<Wall> walls = new ArrayList<>();
 	private Group wallsLayer;
+	private Group editorOverlayLayer;
 
 	// UI base
 	private Group rootGroup; // superpone heatmap + canvas
@@ -113,6 +115,20 @@ public class VisualGridApp extends Application {
 	private CheckBox chkDiffraction;
 	private CheckBox chkScattering;
 	private String activeTemplateName = Environment.defaultTemplateName();
+	private FloorPlanTool floorPlanTool = FloorPlanTool.SELECT;
+	private Wall selectedWall;
+	private double draftStartGridX = Double.NaN;
+	private double draftStartGridY = Double.NaN;
+	private double draftHoverGridX = Double.NaN;
+	private double draftHoverGridY = Double.NaN;
+	private core.material.Material floorPlanMaterial = MaterialsDB.DRYWALL;
+	private double floorPlanThicknessCm = 8.0;
+	private boolean floorPlanSnapToGrid = true;
+	private final Deque<List<Wall>> wallEditHistory = new ArrayDeque<>();
+	private ComboBox<MaterialChoice> floorPlanMaterialCombo;
+	private TextField floorPlanThicknessField;
+	private Label floorPlanHintLabel;
+	private Label floorPlanSelectionLabel;
 
 	// Dimensiones raster
 	private int cellSizePx = SCALE;
@@ -134,6 +150,37 @@ public class VisualGridApp extends Application {
 
 	// Aux record
 	private record NodeBundle(Circle dot, Label label, Tooltip tip) {
+	}
+
+	private enum FloorPlanTool {
+		SELECT("Seleccionar", "Selecciona una pared para editarla o cambiar su material."),
+		WALL("Muro", "Haz clic en dos puntos para crear un muro recto."),
+		ROOM("Habitacion", "Haz clic en dos esquinas opuestas para crear una estancia rectangular."),
+		DELETE("Borrar", "Haz clic sobre una pared para eliminarla.");
+
+		private final String label;
+		private final String helpText;
+
+		FloorPlanTool(String label, String helpText) {
+			this.label = label;
+			this.helpText = helpText;
+		}
+
+		public String helpText() {
+			return helpText;
+		}
+
+		@Override
+		public String toString() {
+			return label;
+		}
+	}
+
+	private record MaterialChoice(String label, core.material.Material material) {
+		@Override
+		public String toString() {
+			return label;
+		}
 	}
 
 	// ============================
@@ -195,8 +242,7 @@ public class VisualGridApp extends Application {
 
 		// Dibujo inicial + utilidades
 		repaintAll();
-		enableWallEditing(); // menú contextual para cambiar material
-		enableCleanProbe(); // tooltip con metricas al mover raton
+		configureCanvasInteractions();
 	}
 
 	// ============================Sss
@@ -569,8 +615,10 @@ public class VisualGridApp extends Application {
 		heatmapView.setVisible(false);
 
 		wallsLayer = new Group();
+		editorOverlayLayer = new Group();
+		editorOverlayLayer.setMouseTransparent(true);
 		Pane canvasHolder = new Pane(gridCanvas);
-		rootGroup = new Group(heatmapView, wallsLayer, canvasHolder);
+		rootGroup = new Group(heatmapView, wallsLayer, canvasHolder, editorOverlayLayer);
 		Pane centerPane = new Pane(rootGroup);
 
 		VBox sideContent = new VBox(14);
@@ -911,6 +959,7 @@ public class VisualGridApp extends Application {
 
 		VBox radioContent = new VBox(12, radioGrid, btnApplyModel);
 		VBox radioSection = createSection("Entorno y radio", radioContent);
+		VBox floorPlanSection = createPlanEditorSection();
 
 		ComboBox<String> cbTemplate = new ComboBox<>();
 		cbTemplate.getItems().setAll(Environment.builtInTemplateNames());
@@ -928,24 +977,41 @@ public class VisualGridApp extends Application {
 		});
 
 		Button btnLoadTemplate = new Button("Cargar escenario");
+		Button btnAppendTemplate = new Button("Anadir escenario");
 		Button btnClearTemplate = new Button("Vaciar plano");
 		stylePrimaryButton(btnLoadTemplate);
+		styleSecondaryButton(btnAppendTemplate);
 		styleSecondaryButton(btnClearTemplate);
 
+		TextField tfTemplateOffsetX = new TextField("0");
+		TextField tfTemplateOffsetY = new TextField("0");
+		tfTemplateOffsetX.setPromptText("X");
+		tfTemplateOffsetY.setPromptText("Y");
+		styleInputField(tfTemplateOffsetX);
+		styleInputField(tfTemplateOffsetY);
+
 		btnLoadTemplate.setOnAction(e -> applyTemplate(cbTemplate.getValue()));
+		btnAppendTemplate.setOnAction(e -> {
+			double offsetX = parseDoubleOrDefault(tfTemplateOffsetX.getText(), 0.0);
+			double offsetY = parseDoubleOrDefault(tfTemplateOffsetY.getText(), 0.0);
+			appendTemplateToPlan(cbTemplate.getValue(), offsetX, offsetY);
+		});
 		btnClearTemplate.setOnAction(e -> {
-			env.clearWalls();
-			walls = new ArrayList<>(env.getWalls());
-			repaintAll();
+			clearAllWalls();
 		});
 
 		GridPane templateGrid = createFormGrid();
 		addFormRow(templateGrid, 0, "Escenario", cbTemplate);
 		addFormRow(templateGrid, 1, "Resumen", templateInfo);
+		HBox templateOffsetRow = new HBox(8, tfTemplateOffsetX, tfTemplateOffsetY);
+		HBox.setHgrow(tfTemplateOffsetX, Priority.ALWAYS);
+		HBox.setHgrow(tfTemplateOffsetY, Priority.ALWAYS);
+		addFormRow(templateGrid, 2, "Desplazamiento", templateOffsetRow);
 
 		GridPane templateButtons = createButtonGrid();
 		templateButtons.add(btnLoadTemplate, 0, 0);
 		templateButtons.add(btnClearTemplate, 1, 0);
+		templateButtons.add(btnAppendTemplate, 0, 1, 2, 1);
 		VBox templateContent = new VBox(12, templateGrid, templateButtons);
 		VBox templateSection = createSection("Plantillas", templateContent);
 
@@ -984,7 +1050,7 @@ public class VisualGridApp extends Application {
 		VBox actionsContent = new VBox(10, btnRays, btnWaves, btnParams);
 		VBox actionsSection = createSection("Acciones rapidas", actionsContent);
 
-		sideContent.getChildren().addAll(panelTitle, panelSubtitle, devicesSection, mapSection, radioSection,
+		sideContent.getChildren().addAll(panelTitle, panelSubtitle, devicesSection, mapSection, radioSection, floorPlanSection,
 				templateSection, actionsSection);
 
 		ScrollPane side = new ScrollPane(sideContent);
@@ -1077,6 +1143,357 @@ public class VisualGridApp extends Application {
 		return section;
 	}
 
+	private VBox createPlanEditorSection() {
+		ComboBox<FloorPlanTool> cbTool = new ComboBox<>();
+		cbTool.getItems().setAll(FloorPlanTool.values());
+		cbTool.getSelectionModel().select(floorPlanTool);
+		styleInputField(cbTool);
+
+		floorPlanMaterialCombo = new ComboBox<>();
+		floorPlanMaterialCombo.getItems().setAll(buildFloorPlanMaterials());
+		floorPlanMaterialCombo.getSelectionModel().select(materialChoiceFor(floorPlanMaterial));
+		styleInputField(floorPlanMaterialCombo);
+
+		floorPlanThicknessField = new TextField(String.format(Locale.US, "%.1f", floorPlanThicknessCm));
+		styleInputField(floorPlanThicknessField);
+
+		CheckBox chkSnap = new CheckBox("Ajustar a rejilla de 1 m");
+		chkSnap.setSelected(floorPlanSnapToGrid);
+		chkSnap.setStyle("-fx-text-fill: #243341;");
+
+		Button btnApplySelected = new Button("Aplicar a la seleccion");
+		Button btnUndo = new Button("Deshacer");
+		Button btnCancelDraft = new Button("Cancelar trazo");
+		Button btnDeleteSelected = new Button("Borrar seleccion");
+		stylePrimaryButton(btnApplySelected);
+		styleSecondaryButton(btnUndo);
+		styleSecondaryButton(btnCancelDraft);
+		styleSecondaryButton(btnDeleteSelected);
+
+		TextField tfRoomX = new TextField("4");
+		TextField tfRoomY = new TextField("4");
+		TextField tfRoomWidth = new TextField("8");
+		TextField tfRoomHeight = new TextField("6");
+		styleInputField(tfRoomX);
+		styleInputField(tfRoomY);
+		styleInputField(tfRoomWidth);
+		styleInputField(tfRoomHeight);
+
+		Button btnCreateRoom = new Button("Crear habitacion");
+		stylePrimaryButton(btnCreateRoom);
+
+		cbTool.setOnAction(e -> setFloorPlanTool(cbTool.getValue()));
+		floorPlanMaterialCombo.setOnAction(e -> {
+			MaterialChoice choice = floorPlanMaterialCombo.getValue();
+			if (choice != null) {
+				floorPlanMaterial = choice.material();
+				updateFloorPlanHint(floorPlanTool.helpText());
+			}
+		});
+		floorPlanThicknessField.textProperty().addListener((obs, old, value) -> {
+			floorPlanThicknessCm = Math.max(1.0, parseDoubleOrDefault(value, floorPlanThicknessCm));
+		});
+		chkSnap.setOnAction(e -> {
+			floorPlanSnapToGrid = chkSnap.isSelected();
+			refreshPlanEditorOverlay();
+		});
+
+		btnApplySelected.setOnAction(e -> {
+			floorPlanThicknessCm = Math.max(1.0, parseDoubleOrDefault(floorPlanThicknessField.getText(), floorPlanThicknessCm));
+			floorPlanThicknessField.setText(String.format(Locale.US, "%.1f", floorPlanThicknessCm));
+			MaterialChoice choice = floorPlanMaterialCombo.getValue();
+			if (choice != null) {
+				floorPlanMaterial = choice.material();
+			}
+
+			if (selectedWall == null) {
+				updateFloorPlanHint("Selecciona una pared antes de aplicar cambios.");
+				return;
+			}
+
+			selectedWall.setMaterial(floorPlanMaterial);
+			selectedWall.setThicknessCm(floorPlanThicknessCm);
+			syncWallsWithEnvironment();
+			updateFloorPlanSelectionLabel();
+			repaintAll();
+			updateFloorPlanHint("Cambios aplicados a la pared seleccionada.");
+		});
+
+		btnUndo.setOnAction(e -> undoLastWallEdit());
+		btnCancelDraft.setOnAction(e -> {
+			resetFloorPlanDraft();
+			refreshPlanEditorOverlay();
+			updateFloorPlanHint(floorPlanTool.helpText());
+		});
+		btnDeleteSelected.setOnAction(e -> {
+			if (selectedWall == null) {
+				updateFloorPlanHint("No hay ninguna pared seleccionada para borrar.");
+				return;
+			}
+			removeWallFromPlan(selectedWall, true);
+		});
+
+		btnCreateRoom.setOnAction(e -> {
+			floorPlanThicknessCm = Math.max(1.0, parseDoubleOrDefault(floorPlanThicknessField.getText(), floorPlanThicknessCm));
+			floorPlanThicknessField.setText(String.format(Locale.US, "%.1f", floorPlanThicknessCm));
+			MaterialChoice choice = floorPlanMaterialCombo.getValue();
+			if (choice != null) {
+				floorPlanMaterial = choice.material();
+			}
+
+			double roomX = parseDoubleOrDefault(tfRoomX.getText(), 0.0);
+			double roomY = parseDoubleOrDefault(tfRoomY.getText(), 0.0);
+			double roomWidth = Math.max(1.0, parseDoubleOrDefault(tfRoomWidth.getText(), 4.0));
+			double roomHeight = Math.max(1.0, parseDoubleOrDefault(tfRoomHeight.getText(), 4.0));
+
+			addRoomRectangle(roomX, roomY, roomX + roomWidth, roomY + roomHeight,
+					floorPlanMaterial, floorPlanThicknessCm);
+			updateFloorPlanHint("Habitacion creada con el constructor rapido.");
+		});
+
+		GridPane editorGrid = createFormGrid();
+		addFormRow(editorGrid, 0, "Herramienta", cbTool);
+		addFormRow(editorGrid, 1, "Material", floorPlanMaterialCombo);
+		addFormRow(editorGrid, 2, "Grosor (cm)", floorPlanThicknessField);
+		addFormRow(editorGrid, 3, "Ajuste", chkSnap);
+
+		GridPane quickRoomGrid = createFormGrid();
+		HBox roomOriginRow = new HBox(8, tfRoomX, tfRoomY);
+		HBox roomSizeRow = new HBox(8, tfRoomWidth, tfRoomHeight);
+		HBox.setHgrow(tfRoomX, Priority.ALWAYS);
+		HBox.setHgrow(tfRoomY, Priority.ALWAYS);
+		HBox.setHgrow(tfRoomWidth, Priority.ALWAYS);
+		HBox.setHgrow(tfRoomHeight, Priority.ALWAYS);
+		addFormRow(quickRoomGrid, 0, "Origen (X,Y)", roomOriginRow);
+		addFormRow(quickRoomGrid, 1, "Tamano (m)", roomSizeRow);
+
+		GridPane editorButtons = createButtonGrid();
+		editorButtons.add(btnApplySelected, 0, 0, 2, 1);
+		editorButtons.add(btnUndo, 0, 1);
+		editorButtons.add(btnCancelDraft, 1, 1);
+		editorButtons.add(btnDeleteSelected, 0, 2, 2, 1);
+
+		floorPlanSelectionLabel = new Label();
+		floorPlanSelectionLabel.setWrapText(true);
+		floorPlanSelectionLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #102a43;");
+
+		floorPlanHintLabel = new Label();
+		floorPlanHintLabel.setWrapText(true);
+		floorPlanHintLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #425466;");
+
+		updateFloorPlanSelectionLabel();
+		updateFloorPlanHint(floorPlanTool.helpText());
+
+		VBox quickRoomBox = new VBox(10, quickRoomGrid, btnCreateRoom);
+		quickRoomBox.setPadding(new Insets(10));
+		quickRoomBox.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 10; "
+				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 10;");
+
+		VBox infoBox = new VBox(8, floorPlanSelectionLabel, floorPlanHintLabel);
+		infoBox.setPadding(new Insets(10));
+		infoBox.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 10; "
+				+ "-fx-border-color: #d8e0e8; -fx-border-radius: 10;");
+
+		VBox editorContent = new VBox(12, editorGrid, editorButtons, quickRoomBox, infoBox);
+		return createSection("Editor de planos", editorContent);
+	}
+
+	private List<MaterialChoice> buildFloorPlanMaterials() {
+		return List.of(
+				new MaterialChoice("Tabique", MaterialsDB.DRYWALL),
+				new MaterialChoice("Ladrillo", MaterialsDB.BRICK),
+				new MaterialChoice("Hormigon", MaterialsDB.CONCRETE),
+				new MaterialChoice("Cristal", MaterialsDB.GLASS),
+				new MaterialChoice("Madera", MaterialsDB.WOOD),
+				new MaterialChoice("Puerta metalica", MaterialsDB.METAL_DOOR));
+	}
+
+	private MaterialChoice materialChoiceFor(core.material.Material material) {
+		for (MaterialChoice choice : buildFloorPlanMaterials()) {
+			if (choice.material() == material) {
+				return choice;
+			}
+		}
+		return buildFloorPlanMaterials().getFirst();
+	}
+
+	private void setFloorPlanTool(FloorPlanTool tool) {
+		floorPlanTool = (tool == null) ? FloorPlanTool.SELECT : tool;
+		resetFloorPlanDraft();
+		updateFloorPlanHint(floorPlanTool.helpText());
+		refreshPlanEditorOverlay();
+	}
+
+	private void updateFloorPlanSelectionLabel() {
+		if (floorPlanSelectionLabel == null) {
+			return;
+		}
+		if (selectedWall == null) {
+			floorPlanSelectionLabel.setText("Seleccion actual: ninguna pared.");
+			if (floorPlanMaterialCombo != null) {
+				floorPlanMaterialCombo.getSelectionModel().select(materialChoiceFor(floorPlanMaterial));
+			}
+			if (floorPlanThicknessField != null) {
+				floorPlanThicknessField.setText(String.format(Locale.US, "%.1f", floorPlanThicknessCm));
+			}
+			return;
+		}
+		String materialName = (selectedWall.getMaterial() == null) ? "Sin material" : selectedWall.getMaterial().getName();
+		floorPlanMaterial = (selectedWall.getMaterial() == null) ? MaterialsDB.DRYWALL : selectedWall.getMaterial();
+		floorPlanThicknessCm = selectedWall.getThicknessCm();
+		if (floorPlanMaterialCombo != null) {
+			floorPlanMaterialCombo.getSelectionModel().select(materialChoiceFor(floorPlanMaterial));
+		}
+		if (floorPlanThicknessField != null) {
+			floorPlanThicknessField.setText(String.format(Locale.US, "%.1f", floorPlanThicknessCm));
+		}
+		floorPlanSelectionLabel.setText(String.format(Locale.US,
+				"Seleccion actual: (%.1f, %.1f) -> (%.1f, %.1f) | %s | %.1f cm",
+				selectedWall.getX1(), selectedWall.getY1(), selectedWall.getX2(), selectedWall.getY2(),
+				materialName, selectedWall.getThicknessCm()));
+	}
+
+	private void updateFloorPlanHint(String text) {
+		if (floorPlanHintLabel != null) {
+			floorPlanHintLabel.setText(text);
+		}
+	}
+
+	private void resetFloorPlanDraft() {
+		draftStartGridX = Double.NaN;
+		draftStartGridY = Double.NaN;
+		draftHoverGridX = Double.NaN;
+		draftHoverGridY = Double.NaN;
+	}
+
+	private void clearAllWalls() {
+		walls.clear();
+		selectedWall = null;
+		wallEditHistory.clear();
+		resetFloorPlanDraft();
+		syncWallsWithEnvironment();
+		updateFloorPlanSelectionLabel();
+		repaintAll();
+		updateFloorPlanHint("Plano vaciado. Puedes dibujar muros o anadir una plantilla.");
+	}
+
+	private void appendTemplateToPlan(String templateName, double offsetX, double offsetY) {
+		if (templateName == null) {
+			updateFloorPlanHint("Selecciona una plantilla antes de anadirla.");
+			return;
+		}
+
+		List<Wall> shiftedWalls = new ArrayList<>();
+		for (Wall wall : Environment.wallsForTemplate(templateName)) {
+			shiftedWalls.add(new Wall(
+					wall.getX1() + offsetX,
+					wall.getY1() + offsetY,
+					wall.getX2() + offsetX,
+					wall.getY2() + offsetY,
+					wall.getMaterial(),
+					wall.getThicknessCm()));
+		}
+		addWallsToPlan(shiftedWalls);
+		updateFloorPlanHint(String.format(Locale.US,
+				"Escenario \"%s\" anadido con desplazamiento (%.1f, %.1f).",
+				templateName, offsetX, offsetY));
+	}
+
+	private void addWallsToPlan(List<Wall> newWalls) {
+		if (newWalls == null || newWalls.isEmpty()) {
+			return;
+		}
+		List<Wall> batch = new ArrayList<>();
+		for (Wall wall : newWalls) {
+			Wall copy = wall.copy();
+			walls.add(copy);
+			batch.add(copy.copy());
+		}
+		wallEditHistory.push(batch);
+		syncWallsWithEnvironment();
+		repaintAll();
+	}
+
+	private void addRoomRectangle(double x1, double y1, double x2, double y2,
+			core.material.Material material, double thicknessCm) {
+		double minX = Math.min(x1, x2);
+		double minY = Math.min(y1, y2);
+		double maxX = Math.max(x1, x2);
+		double maxY = Math.max(y1, y2);
+		if (Math.abs(maxX - minX) < 1e-6 || Math.abs(maxY - minY) < 1e-6) {
+			updateFloorPlanHint("La habitacion necesita ancho y alto mayores que cero.");
+			return;
+		}
+
+		List<Wall> roomWalls = List.of(
+				new Wall(minX, minY, maxX, minY, material, thicknessCm),
+				new Wall(maxX, minY, maxX, maxY, material, thicknessCm),
+				new Wall(maxX, maxY, minX, maxY, material, thicknessCm),
+				new Wall(minX, maxY, minX, minY, material, thicknessCm));
+		addWallsToPlan(roomWalls);
+	}
+
+	private void syncWallsWithEnvironment() {
+		env.setWalls(walls);
+		walls = new ArrayList<>(env.getWalls());
+		lastHeatmapResult = null;
+		refreshPlanEditorOverlay();
+	}
+
+	private void undoLastWallEdit() {
+		if (wallEditHistory.isEmpty()) {
+			updateFloorPlanHint("No hay acciones de plano para deshacer.");
+			return;
+		}
+
+		List<Wall> batch = wallEditHistory.pop();
+		for (int i = batch.size() - 1; i >= 0; i--) {
+			removeMatchingWallFromCurrentPlan(batch.get(i));
+		}
+		selectedWall = null;
+		syncWallsWithEnvironment();
+		updateFloorPlanSelectionLabel();
+		repaintAll();
+		updateFloorPlanHint("Se ha deshecho la ultima edicion del plano.");
+	}
+
+	private boolean removeMatchingWallFromCurrentPlan(Wall wallToRemove) {
+		for (int i = walls.size() - 1; i >= 0; i--) {
+			if (sameWall(walls.get(i), wallToRemove)) {
+				walls.remove(i);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void removeWallFromPlan(Wall wall, boolean recordHistory) {
+		if (wall == null) {
+			return;
+		}
+		if (recordHistory) {
+			wallEditHistory.push(List.of(wall.copy()));
+		}
+		if (!walls.remove(wall)) {
+			removeMatchingWallFromCurrentPlan(wall);
+		}
+		if (selectedWall == wall || (selectedWall != null && sameWall(selectedWall, wall))) {
+			selectedWall = null;
+		}
+		syncWallsWithEnvironment();
+		updateFloorPlanSelectionLabel();
+		repaintAll();
+		updateFloorPlanHint("Pared eliminada del plano.");
+	}
+
+	private double parseDoubleOrDefault(String text, double defaultValue) {
+		try {
+			return Double.parseDouble(text.trim());
+		} catch (RuntimeException ex) {
+			return defaultValue;
+		}
+	}
+
 	private void applyTemplate(String templateName) {
 		if (templateName == null) {
 			return;
@@ -1084,6 +1501,11 @@ public class VisualGridApp extends Application {
 		activeTemplateName = templateName;
 		env.setWalls(Environment.wallsForTemplate(templateName));
 		walls = new ArrayList<>(env.getWalls());
+		selectedWall = null;
+		wallEditHistory.clear();
+		resetFloorPlanDraft();
+		updateFloorPlanSelectionLabel();
+		updateFloorPlanHint("Escenario cargado. Puedes ajustarlo o ampliarlo desde el editor de planos.");
 		repaintAll();
 	}
 
@@ -1462,11 +1884,13 @@ public class VisualGridApp extends Application {
 			heatmapView.setVisible(true);
 		} else if (heatmapView != null) {
 			heatmapView.setVisible(false);
+			lastHeatmapResult = null;
 		}
 
 		Pane center = (Pane) ((BorderPane) rootGroup.getParent().getParent()).getCenter();
 		drawAxesAndGrid(center);
 		drawWallsInLayer();
+		refreshPlanEditorOverlay();
 		drawHubAndSensors(center);
 	}
 
@@ -1696,6 +2120,284 @@ public class VisualGridApp extends Application {
 	// ============================
 	// Edición de paredes (opcional)
 	// ============================
+	private void configureCanvasInteractions() {
+		probeTip.setShowDelay(Duration.millis(80));
+
+		gridCanvas.setOnMouseMoved(e -> {
+			if (!isInsideEditableGrid(e.getX(), e.getY())) {
+				Tooltip.uninstall(gridCanvas, probeTip);
+				draftHoverGridX = Double.NaN;
+				draftHoverGridY = Double.NaN;
+				refreshPlanEditorOverlay();
+				return;
+			}
+
+			draftHoverGridX = normalizeEditorCoordinate(toGridXd(e.getX()), gridW);
+			draftHoverGridY = normalizeEditorCoordinate(toGridYd(e.getY()), gridH);
+			refreshPlanEditorOverlay();
+			updateProbeTooltip(e.getX(), e.getY());
+		});
+
+		gridCanvas.setOnMouseExited(e -> {
+			Tooltip.uninstall(gridCanvas, probeTip);
+			draftHoverGridX = Double.NaN;
+			draftHoverGridY = Double.NaN;
+			refreshPlanEditorOverlay();
+		});
+
+		gridCanvas.setOnMouseClicked(e -> {
+			if (!isInsideEditableGrid(e.getX(), e.getY())) {
+				return;
+			}
+
+			double gridX = normalizeEditorCoordinate(toGridXd(e.getX()), gridW);
+			double gridY = normalizeEditorCoordinate(toGridYd(e.getY()), gridH);
+
+			if (e.getButton() == MouseButton.SECONDARY) {
+				Wall wall = findWallNear(px(gridX), py(gridY));
+				if (wall != null) {
+					selectWall(wall);
+					showWallContextMenu(e.getScreenX(), e.getScreenY(), wall);
+				}
+				return;
+			}
+
+			if (e.getButton() != MouseButton.PRIMARY) {
+				return;
+			}
+
+			handleFloorPlanPrimaryClick(gridX, gridY);
+		});
+	}
+
+	private void handleFloorPlanPrimaryClick(double gridX, double gridY) {
+		switch (floorPlanTool) {
+		case SELECT -> {
+			Wall wall = findWallNear(px(gridX), py(gridY));
+			selectWall(wall);
+			updateFloorPlanHint((wall == null)
+					? "No hay ninguna pared en ese punto. Prueba con otro segmento."
+					: "Pared seleccionada. Puedes editarla desde el panel o con clic derecho.");
+		}
+		case WALL -> {
+			if (Double.isNaN(draftStartGridX) || Double.isNaN(draftStartGridY)) {
+				draftStartGridX = gridX;
+				draftStartGridY = gridY;
+				draftHoverGridX = gridX;
+				draftHoverGridY = gridY;
+				selectWall(null);
+				updateFloorPlanHint(String.format(Locale.US,
+						"Punto inicial fijado en (%.1f, %.1f). Haz clic en el final del muro.",
+						draftStartGridX, draftStartGridY));
+				refreshPlanEditorOverlay();
+				return;
+			}
+
+			if (Math.hypot(gridX - draftStartGridX, gridY - draftStartGridY) < 1e-6) {
+				updateFloorPlanHint("El segundo punto debe ser distinto del primero.");
+				return;
+			}
+
+			addWallsToPlan(List.of(new Wall(draftStartGridX, draftStartGridY, gridX, gridY,
+					floorPlanMaterial, floorPlanThicknessCm)));
+			resetFloorPlanDraft();
+			updateFloorPlanHint("Muro creado. Puedes seguir dibujando.");
+		}
+		case ROOM -> {
+			if (Double.isNaN(draftStartGridX) || Double.isNaN(draftStartGridY)) {
+				draftStartGridX = gridX;
+				draftStartGridY = gridY;
+				draftHoverGridX = gridX;
+				draftHoverGridY = gridY;
+				selectWall(null);
+				updateFloorPlanHint(String.format(Locale.US,
+						"Primera esquina fijada en (%.1f, %.1f). Haz clic en la esquina opuesta.",
+						draftStartGridX, draftStartGridY));
+				refreshPlanEditorOverlay();
+				return;
+			}
+
+			addRoomRectangle(draftStartGridX, draftStartGridY, gridX, gridY,
+					floorPlanMaterial, floorPlanThicknessCm);
+			resetFloorPlanDraft();
+			updateFloorPlanHint("Habitacion creada. Puedes seguir anadiendo espacios.");
+		}
+		case DELETE -> {
+			Wall wall = findWallNear(px(gridX), py(gridY));
+			if (wall == null) {
+				updateFloorPlanHint("No hay una pared en ese punto para borrar.");
+				return;
+			}
+			removeWallFromPlan(wall, true);
+		}
+		default -> {
+		}
+		}
+	}
+
+	private void selectWall(Wall wall) {
+		selectedWall = wall;
+		updateFloorPlanSelectionLabel();
+		refreshPlanEditorOverlay();
+	}
+
+	private void showWallContextMenu(double screenX, double screenY, Wall wall) {
+		ContextMenu cm = new ContextMenu();
+
+		MenuItem miSelect = new MenuItem("Seleccionar pared");
+		miSelect.setOnAction(e -> {
+			selectWall(wall);
+			updateFloorPlanHint("Pared seleccionada desde el menu contextual.");
+		});
+
+		Menu mMat = new Menu("Material");
+		for (MaterialChoice choice : buildFloorPlanMaterials()) {
+			MenuItem item = new MenuItem(choice.label());
+			item.setOnAction(e -> {
+				wall.setMaterial(choice.material());
+				floorPlanMaterial = choice.material();
+				syncWallsWithEnvironment();
+				updateFloorPlanSelectionLabel();
+				repaintAll();
+				updateFloorPlanHint("Material actualizado en la pared seleccionada.");
+			});
+			mMat.getItems().add(item);
+		}
+
+		Menu mThickness = new Menu("Grosor");
+		for (double thickness : List.of(4.0, 8.0, 12.0, 20.0)) {
+			MenuItem item = new MenuItem(String.format(Locale.US, "%.0f cm", thickness));
+			item.setOnAction(e -> {
+				wall.setThicknessCm(thickness);
+				floorPlanThicknessCm = thickness;
+				syncWallsWithEnvironment();
+				updateFloorPlanSelectionLabel();
+				repaintAll();
+				updateFloorPlanHint("Grosor actualizado en la pared seleccionada.");
+			});
+			mThickness.getItems().add(item);
+		}
+
+		MenuItem miDelete = new MenuItem("Borrar pared");
+		miDelete.setOnAction(e -> removeWallFromPlan(wall, true));
+
+		cm.getItems().addAll(miSelect, mMat, mThickness, new SeparatorMenuItem(), miDelete);
+		cm.show(gridCanvas, screenX, screenY);
+	}
+
+	private void refreshPlanEditorOverlay() {
+		if (editorOverlayLayer == null) {
+			return;
+		}
+		editorOverlayLayer.getChildren().clear();
+
+		if (selectedWall != null) {
+			highlightWallOnOverlay(selectedWall, Color.web("#f59e0b"), 7.0, 0.75, false);
+		}
+
+		if (floorPlanTool == FloorPlanTool.DELETE && !Double.isNaN(draftHoverGridX) && !Double.isNaN(draftHoverGridY)) {
+			Wall hoverWall = findWallNear(px(draftHoverGridX), py(draftHoverGridY));
+			if (hoverWall != null && hoverWall != selectedWall) {
+				highlightWallOnOverlay(hoverWall, Color.web("#dc2626"), 7.0, 0.55, false);
+			}
+		}
+
+		if (Double.isNaN(draftStartGridX) || Double.isNaN(draftStartGridY)
+				|| Double.isNaN(draftHoverGridX) || Double.isNaN(draftHoverGridY)) {
+			return;
+		}
+
+		if (floorPlanTool == FloorPlanTool.WALL) {
+			Line preview = new Line(px(draftStartGridX), py(draftStartGridY), px(draftHoverGridX), py(draftHoverGridY));
+			preview.setStroke(Color.web("#1f6feb"));
+			preview.setStrokeWidth(4.0);
+			preview.setOpacity(0.75);
+			preview.getStrokeDashArray().addAll(10.0, 6.0);
+			editorOverlayLayer.getChildren().add(preview);
+			editorOverlayLayer.getChildren().addAll(
+					createEditorAnchor(draftStartGridX, draftStartGridY, Color.web("#1f6feb")),
+					createEditorAnchor(draftHoverGridX, draftHoverGridY, Color.web("#1f6feb")));
+			return;
+		}
+
+		if (floorPlanTool == FloorPlanTool.ROOM) {
+			double minX = Math.min(draftStartGridX, draftHoverGridX);
+			double minY = Math.min(draftStartGridY, draftHoverGridY);
+			double maxX = Math.max(draftStartGridX, draftHoverGridX);
+			double maxY = Math.max(draftStartGridY, draftHoverGridY);
+
+			Rectangle preview = new Rectangle(px(minX), py(maxY), (maxX - minX) * SCALE, (maxY - minY) * SCALE);
+			preview.setFill(Color.web("#1f6feb", 0.12));
+			preview.setStroke(Color.web("#1f6feb"));
+			preview.setStrokeWidth(3.0);
+			preview.getStrokeDashArray().addAll(10.0, 6.0);
+			editorOverlayLayer.getChildren().add(preview);
+			editorOverlayLayer.getChildren().addAll(
+					createEditorAnchor(minX, minY, Color.web("#1f6feb")),
+					createEditorAnchor(maxX, maxY, Color.web("#1f6feb")));
+		}
+	}
+
+	private void highlightWallOnOverlay(Wall wall, Color color, double strokeWidth, double opacity, boolean dashed) {
+		Line highlight = new Line(px(wall.getX1()), py(wall.getY1()), px(wall.getX2()), py(wall.getY2()));
+		highlight.setStroke(color);
+		highlight.setStrokeWidth(strokeWidth);
+		highlight.setOpacity(opacity);
+		if (dashed) {
+			highlight.getStrokeDashArray().addAll(10.0, 6.0);
+		}
+		editorOverlayLayer.getChildren().add(highlight);
+	}
+
+	private Circle createEditorAnchor(double gridX, double gridY, Color color) {
+		Circle anchor = new Circle(px(gridX), py(gridY), 4.5, color);
+		anchor.setStroke(Color.WHITE);
+		anchor.setStrokeWidth(1.5);
+		return anchor;
+	}
+
+	private boolean isInsideEditableGrid(double pixelX, double pixelY) {
+		double gridX = toGridXd(pixelX);
+		double gridY = toGridYd(pixelY);
+		return gridX >= 0.0 && gridY >= 0.0 && gridX <= gridW && gridY <= gridH;
+	}
+
+	private double normalizeEditorCoordinate(double coordinate, double maxValue) {
+		double normalized = Math.max(0.0, Math.min(maxValue, coordinate));
+		return floorPlanSnapToGrid ? Math.rint(normalized) : normalized;
+	}
+
+	private void updateProbeTooltip(double pixelX, double pixelY) {
+		int gx = (int) ((pixelX - MARGIN) / cellSizePx);
+		int gy = (int) ((HEIGHT - MARGIN - pixelY) / cellSizePx);
+		if (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH) {
+			Tooltip.uninstall(gridCanvas, probeTip);
+			return;
+		}
+
+		CellResult cell = (lastHeatmapResult != null)
+				? lastHeatmapResult.getCell(gx, gy)
+				: IndoorWaveEngine.computeCell(env, config.getSensores(), gx + 0.5, gy + 0.5, buildReceiverSettings());
+		if (cell == null) {
+			Tooltip.uninstall(gridCanvas, probeTip);
+			return;
+		}
+
+		String strongestPaths = cell.contributions().stream().limit(3).map(PathContribution::summary)
+				.reduce((a, b) -> a + "\n" + b).orElse("Sin trayectorias destacadas");
+
+		probeTip.setText(String.format(Locale.US,
+				"Celda (%d,%d)\nSensor dominante: %s\nPotencia total: %.1f dBm\nSenal util: %.1f dBm\n"
+						+ "Interferencia: %.1f dBm\nRuido: %.1f dBm\nSNR: %.1f dB\nSINR: %.1f dB\n"
+						+ "BER: %.2e\nCapacidad: %.2f Mbps\nMargen: %.1f dB\nFase: %.1f deg\n"
+						+ "Trayectorias: %d\n%s",
+				gx, gy, cell.dominantSensorId(), cell.totalPowerDbm(), cell.signalPowerDbm(),
+				cell.interferencePowerDbm(), cell.noiseDbm(), cell.snrDb(), cell.sinrDb(), cell.ber(),
+				cell.capacityMbps(), cell.linkMarginDb(), Math.toDegrees(cell.fieldPhaseRad()), cell.pathCount(),
+				strongestPaths));
+		Tooltip.install(gridCanvas, probeTip);
+	}
+
 	private void enableWallEditing() {
 		gridCanvas.setOnMouseClicked(e -> {
 			if (!e.isSecondaryButtonDown())
