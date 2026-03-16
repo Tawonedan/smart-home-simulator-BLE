@@ -380,6 +380,110 @@ Para interpretar bien los resultados conviene tener presentes estas simplificaci
 - La frecuencia seleccionable desde la UI esta pensada para 2.4 GHz y 5 GHz.
 - No hay movilidad temporal ni trafico real de protocolos; el foco esta en propagacion y enlace.
 
+## Mejoras futuras
+
+Si el objetivo es hacer el simulador mucho mas fiel a la realidad y mas util para diseno y validacion, estas serian las lineas de evolucion con mas impacto.
+
+### 1. Mejoras de mayor impacto
+
+- Pasar de 2D a `2.5D` o `3D`:
+  - altura de sensores y hub
+  - techo y suelo
+  - muebles altos y obstaculos verticales
+  - varias plantas o niveles
+- Calibracion con medidas reales:
+  - importar mediciones RSSI/SNR tomadas en campo
+  - ajustar materiales, `n`, perdidas y `K-factor`
+  - reducir la distancia entre simulacion y entorno real
+- Modelos por tecnologia:
+  - perfiles especificos para `Wi-Fi`, `BLE`, `Zigbee`, `LoRa`, etc.
+  - sensibilidad, potencia, ancho de banda y canales propios de cada tecnologia
+- Metricas de enlace mas realistas:
+  - `MCS`
+  - modulacion y codificacion
+  - `PER` o perdida de paquetes
+  - throughput util, no solo capacidad de Shannon
+- Antenas mas reales:
+  - importar patrones medidos o tablas reales
+  - comparar antenas comerciales o configuraciones concretas
+
+### 2. Mejoras para ser mas fiel a la realidad
+
+- Materiales mas detallados:
+  - dependencia con frecuencia, angulo, espesor y humedad
+  - puertas abiertas o cerradas
+  - ventanas y particiones ligeras
+- Obstaculos interiores adicionales:
+  - personas
+  - estanterias
+  - armarios
+  - maquinaria
+  - electrodomesticos
+- Multipath mas avanzado:
+  - reflexiones de orden superior mas robustas
+  - difraccion mejor modelada
+  - dispersion ligada a rugosidad real
+- Fading espacial y temporal coherente:
+  - evitar que el mapa parezca ruido independiente entre celdas
+  - modelar pequenas variaciones al mover dispositivos o recorrer el entorno
+- Interferencias de canal:
+  - canales solapados
+  - ocupacion del medio
+  - ruido externo
+  - coexistencia entre varias redes
+- Soporte para `MIMO` y `OFDM`:
+  - especialmente importante si el objetivo es aproximarse mas a Wi-Fi moderno
+
+### 3. Mejoras para ser mas util en la practica
+
+- Editor de planos mas completo:
+  - dibujar habitaciones, puertas y ventanas
+  - ajustar cotas
+  - importar planos o referencias
+- Biblioteca de escenarios aun mas amplia:
+  - viviendas
+  - hoteles
+  - oficinas
+  - hospitales
+  - almacenes
+  - naves
+- Ayuda a la colocacion:
+  - sugerir donde poner hub, sensores o puntos de acceso
+  - maximizar cobertura
+  - minimizar zonas muertas e interferencias
+- Objetivos de diseno:
+  - por ejemplo, exigir un minimo de potencia, SINR o capacidad en cierto porcentaje del plano
+- Comparacion entre configuraciones:
+  - antes y despues
+  - dos ubicaciones
+  - dos tecnologias
+  - diferencia entre mapas
+- Exportacion de resultados:
+  - informes PDF
+  - tablas CSV
+  - configuraciones en JSON
+- Evaluacion por zonas de uso:
+  - dormitorio
+  - pasillo
+  - recepcion
+  - almacen
+  - area de maquinaria
+- Alertas automaticas:
+  - zonas sin cobertura
+  - enlaces con margen bajo
+  - interferencia excesiva
+  - materiales especialmente criticos
+
+### 4. Prioridad recomendada
+
+Si hubiese que priorizar el desarrollo futuro, una hoja de ruta muy razonable seria:
+
+1. Calibracion con mediciones reales.
+2. Editor e importacion de planos con materiales mas completos.
+3. Perfiles por tecnologia con metricas de throughput y enlace mas realistas.
+4. Paso a `2.5D` o `3D`.
+5. Optimizacion automatica de colocacion de dispositivos.
+
 ## Resumen rapido
 
 Hoy el proyecto ya permite crear escenarios interiores, simular cobertura de varios dispositivos, estudiar materiales y comparar metricas de calidad de enlace con una interfaz visual. No es solo un visor de rayos: ya incluye un motor indoor de ondas con interferencia, fading, difraccion, dispersion, polarizacion, BER, capacidad y validacion numerica de resultados.
