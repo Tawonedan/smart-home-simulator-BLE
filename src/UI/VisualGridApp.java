@@ -2322,7 +2322,7 @@ public class VisualGridApp extends Application {
 	    }
 	    return lerpTurbo(normalized);
 	}
-
+//aa
 	private double normalize(double value, double min, double max) {
 	    if (Math.abs(max - min) < 1e-9) return 0.0;
 	    return Math.max(0.0, Math.min(1.0, (value - min) / (max - min)));
