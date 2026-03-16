@@ -20,7 +20,7 @@ public record CellResult(
         List<PathContribution> contributions
 ) {
     public CellResult {
-        dominantSensorId = (dominantSensorId == null || dominantSensorId.isBlank()) ? "—" : dominantSensorId;
+        dominantSensorId = (dominantSensorId == null || dominantSensorId.isBlank()) ? "Sin sensor" : dominantSensorId;
         contributions = List.copyOf(contributions);
     }
 

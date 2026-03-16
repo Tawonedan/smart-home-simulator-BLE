@@ -31,4 +31,8 @@ public class Wall {
     public double lossDb(double freqMHz){
         return (material == null) ? 0.0 : material.lossDb(freqMHz, thicknessCm);
     }
+
+    public Wall copy() {
+        return new Wall(x1, y1, x2, y2, material, thicknessCm);
+    }
 }
