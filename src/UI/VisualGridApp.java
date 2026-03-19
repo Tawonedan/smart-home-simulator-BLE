@@ -66,12 +66,12 @@ public class VisualGridApp extends Application {
 	// ============================
 	// Constantes de dibujo / Grid
 	// ============================
-	public static final int WIDTH = 1000;
-	public static final int HEIGHT = 700;
 	public static final int MARGIN = 35;
-	public static final int GRID_MAX_X = 35;
-	public static final int GRID_MAX_Y = 35;
-	public static final int SCALE = 18;
+	public static final int GRID_MAX_X = 50;
+	public static final int GRID_MAX_Y = 40;
+	public static final int SCALE = 22;
+	public static final int WIDTH = GRID_MAX_X * SCALE + 2 * MARGIN;
+	public static final int HEIGHT = GRID_MAX_Y * SCALE + 2 * MARGIN;
 
 
 	// ============================
@@ -112,6 +112,8 @@ public class VisualGridApp extends Application {
 	private ComboBox<MapMetric> cbMetric;
 	private ComboBox<PropagationMode> cbMode;
 	private ComboBox<FadingModel> cbFading;
+	private ComboBox<Sensor> sensorSelectorCombo;
+	private ComboBox<FloorPlanTool> canvasToolCombo;
 	private CheckBox chkDiffraction;
 	private CheckBox chkScattering;
 	private String activeTemplateName = Environment.defaultTemplateName();
@@ -127,6 +129,9 @@ public class VisualGridApp extends Application {
 	private final Deque<List<Wall>> wallEditHistory = new ArrayDeque<>();
 	private ComboBox<MaterialChoice> floorPlanMaterialCombo;
 	private TextField floorPlanThicknessField;
+	private TextField deviceXField;
+	private TextField deviceYField;
+	private Label devicePlacementHintLabel;
 	private Label floorPlanHintLabel;
 	private Label floorPlanSelectionLabel;
 
@@ -156,6 +161,8 @@ public class VisualGridApp extends Application {
 		SELECT("Seleccionar", "Selecciona una pared para editarla o cambiar su material."),
 		WALL("Muro", "Haz clic en dos puntos para crear un muro recto."),
 		ROOM("Habitacion", "Haz clic en dos esquinas opuestas para crear una estancia rectangular."),
+		SENSOR("Sensor", "Haz clic en el plano para colocar un sensor."),
+		HUB("Hub", "Haz clic en el plano para colocar o mover el hub."),
 		DELETE("Borrar", "Haz clic sobre una pared para eliminarla.");
 
 		private final String label;
@@ -634,24 +641,24 @@ public class VisualGridApp extends Application {
 		panelSubtitle.setWrapText(true);
 		panelSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #5f6b76;");
 
-		TextField tfX = new TextField("5");
-		TextField tfY = new TextField("5");
-		tfX.setPromptText("X");
-		tfY.setPromptText("Y");
-		tfX.setPrefWidth(70);
-		tfY.setPrefWidth(70);
-		styleInputField(tfX);
-		styleInputField(tfY);
+		deviceXField = new TextField("5");
+		deviceYField = new TextField("5");
+		deviceXField.setPromptText("X");
+		deviceYField.setPromptText("Y");
+		deviceXField.setPrefWidth(70);
+		deviceYField.setPrefWidth(70);
+		styleInputField(deviceXField);
+		styleInputField(deviceYField);
 
 		Label lblX = new Label("X");
 		Label lblY = new Label("Y");
 		lblX.setStyle("-fx-text-fill: #5f6b76; -fx-font-weight: bold;");
 		lblY.setStyle("-fx-text-fill: #5f6b76; -fx-font-weight: bold;");
 
-		HBox positionRow = new HBox(8, lblX, tfX, lblY, tfY);
+		HBox positionRow = new HBox(8, lblX, deviceXField, lblY, deviceYField);
 		positionRow.setAlignment(Pos.CENTER_LEFT);
-		HBox.setHgrow(tfX, Priority.ALWAYS);
-		HBox.setHgrow(tfY, Priority.ALWAYS);
+		HBox.setHgrow(deviceXField, Priority.ALWAYS);
+		HBox.setHgrow(deviceYField, Priority.ALWAYS);
 
 		Button btnAddSensor = new Button("Anadir sensor");
 		Button btnAddHub = new Button("Anadir hub");
@@ -660,10 +667,10 @@ public class VisualGridApp extends Application {
 		styleSecondaryButton(btnAddHub);
 		styleSecondaryButton(btnRemove);
 
-		ComboBox<Sensor> cbSelectSensor = new ComboBox<>();
-		cbSelectSensor.setPromptText("Selecciona un sensor");
-		cbSelectSensor.getItems().setAll(config.getSensores());
-		styleInputField(cbSelectSensor);
+		sensorSelectorCombo = new ComboBox<>();
+		sensorSelectorCombo.setPromptText("Selecciona un sensor");
+		sensorSelectorCombo.getItems().setAll(config.getSensores());
+		styleInputField(sensorSelectorCombo);
 
 		ComboBox<String> cbAntType = new ComboBox<>();
 		cbAntType.getItems().addAll("Omni", "Direccional");
@@ -684,7 +691,7 @@ public class VisualGridApp extends Application {
 		Button btnApplyConfig = new Button("Guardar antena");
 		stylePrimaryButton(btnApplyConfig);
 
-		cbSelectSensor.valueProperty().addListener((obs, old, selected) -> {
+		sensorSelectorCombo.valueProperty().addListener((obs, old, selected) -> {
 			if (selected == null) {
 				return;
 			}
@@ -694,18 +701,14 @@ public class VisualGridApp extends Application {
 			tfGain.setText(String.format(Locale.US, "%.1f", selected.getTxGainDb()));
 			tfPattern.setText(String.format(Locale.US, "%.2f", selected.getPatternSharpness()));
 			tfPol.setText(String.format(Locale.US, "%.1f", selected.getPolarizationDeg()));
+			updateDevicePositionFields(selected.getX(), selected.getY());
 		});
 
 		btnAddSensor.setOnAction(e -> {
 			try {
-				int x = Integer.parseInt(tfX.getText().trim());
-				int y = Integer.parseInt(tfY.getText().trim());
-				Sensor sensor = new Sensor("S" + (config.getSensores().size() + 1),
-						"Sensor " + (config.getSensores().size() + 1), x, y, 22.5);
-				config.addSensor(sensor);
-				cbSelectSensor.getItems().add(sensor);
-				cbSelectSensor.getSelectionModel().select(sensor);
-				repaintAll();
+				int x = Integer.parseInt(deviceXField.getText().trim());
+				int y = Integer.parseInt(deviceYField.getText().trim());
+				createSensorAt(x, y);
 			} catch (NumberFormatException ex) {
 				System.err.println("Coordenadas invalidas");
 			}
@@ -713,20 +716,19 @@ public class VisualGridApp extends Application {
 
 		btnAddHub.setOnAction(e -> {
 			try {
-				int x = Integer.parseInt(tfX.getText().trim());
-				int y = Integer.parseInt(tfY.getText().trim());
-				config.setHub(new Hub("H1", "Hub central", x, y));
-				repaintAll();
+				int x = Integer.parseInt(deviceXField.getText().trim());
+				int y = Integer.parseInt(deviceYField.getText().trim());
+				placeHubAt(x, y);
 			} catch (NumberFormatException ex) {
 				System.err.println("Coordenadas invalidas");
 			}
 		});
 
 		btnRemove.setOnAction(e -> {
-			Sensor selected = cbSelectSensor.getSelectionModel().getSelectedItem();
+			Sensor selected = sensorSelectorCombo.getSelectionModel().getSelectedItem();
 			if (selected != null) {
 				config.removeSensor(selected);
-				cbSelectSensor.getItems().remove(selected);
+				sensorSelectorCombo.getItems().remove(selected);
 			} else if (config.hasHub()) {
 				config.setHub(null);
 			}
@@ -734,7 +736,7 @@ public class VisualGridApp extends Application {
 		});
 
 		btnApplyConfig.setOnAction(e -> {
-			Sensor selected = cbSelectSensor.getSelectionModel().getSelectedItem();
+			Sensor selected = sensorSelectorCombo.getSelectionModel().getSelectedItem();
 			if (selected == null) {
 				return;
 			}
@@ -772,7 +774,7 @@ public class VisualGridApp extends Application {
 
 		GridPane deviceGrid = createFormGrid();
 		addFormRow(deviceGrid, 0, "Posicion", positionRow);
-		addFormRow(deviceGrid, 1, "Sensor activo", cbSelectSensor);
+		addFormRow(deviceGrid, 1, "Sensor activo", sensorSelectorCombo);
 		addFormRow(deviceGrid, 2, "Antena", cbAntType);
 		addFormRow(deviceGrid, 3, "Orientacion (deg)", tfOrient);
 		addFormRow(deviceGrid, 4, "Apertura (deg)", tfBeam);
@@ -780,12 +782,31 @@ public class VisualGridApp extends Application {
 		addFormRow(deviceGrid, 6, "Patron G(theta)", tfPattern);
 		addFormRow(deviceGrid, 7, "Polarizacion (deg)", tfPol);
 
+		Button btnPlaceSensor = new Button("Colocar sensor en mapa");
+		Button btnPlaceHub = new Button("Colocar hub en mapa");
+		Button btnStopPlacing = new Button("Usar coordenadas");
+		styleSecondaryButton(btnPlaceSensor);
+		styleSecondaryButton(btnPlaceHub);
+		styleSecondaryButton(btnStopPlacing);
+
+		btnPlaceSensor.setOnAction(e -> setFloorPlanTool(FloorPlanTool.SENSOR));
+		btnPlaceHub.setOnAction(e -> setFloorPlanTool(FloorPlanTool.HUB));
+		btnStopPlacing.setOnAction(e -> setFloorPlanTool(FloorPlanTool.SELECT));
+
+		devicePlacementHintLabel = new Label();
+		devicePlacementHintLabel.setWrapText(true);
+		devicePlacementHintLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #425466;");
+		updateDevicePlacementHint();
+
 		GridPane deviceButtons = createButtonGrid();
 		deviceButtons.add(btnAddSensor, 0, 0);
 		deviceButtons.add(btnAddHub, 1, 0);
 		deviceButtons.add(btnRemove, 0, 1, 2, 1);
+		deviceButtons.add(btnPlaceSensor, 0, 2);
+		deviceButtons.add(btnPlaceHub, 1, 2);
+		deviceButtons.add(btnStopPlacing, 0, 3, 2, 1);
 
-		VBox deviceContent = new VBox(12, deviceGrid, deviceButtons, btnApplyConfig);
+		VBox deviceContent = new VBox(12, deviceGrid, deviceButtons, devicePlacementHintLabel, btnApplyConfig);
 		VBox devicesSection = createSection("Dispositivos", deviceContent);
 
 		ComboBox<String> cbFreq = new ComboBox<>();
@@ -1144,10 +1165,10 @@ public class VisualGridApp extends Application {
 	}
 
 	private VBox createPlanEditorSection() {
-		ComboBox<FloorPlanTool> cbTool = new ComboBox<>();
-		cbTool.getItems().setAll(FloorPlanTool.values());
-		cbTool.getSelectionModel().select(floorPlanTool);
-		styleInputField(cbTool);
+		canvasToolCombo = new ComboBox<>();
+		canvasToolCombo.getItems().setAll(FloorPlanTool.values());
+		canvasToolCombo.getSelectionModel().select(floorPlanTool);
+		styleInputField(canvasToolCombo);
 
 		floorPlanMaterialCombo = new ComboBox<>();
 		floorPlanMaterialCombo.getItems().setAll(buildFloorPlanMaterials());
@@ -1182,7 +1203,7 @@ public class VisualGridApp extends Application {
 		Button btnCreateRoom = new Button("Crear habitacion");
 		stylePrimaryButton(btnCreateRoom);
 
-		cbTool.setOnAction(e -> setFloorPlanTool(cbTool.getValue()));
+		canvasToolCombo.setOnAction(e -> setFloorPlanTool(canvasToolCombo.getValue()));
 		floorPlanMaterialCombo.setOnAction(e -> {
 			MaterialChoice choice = floorPlanMaterialCombo.getValue();
 			if (choice != null) {
@@ -1252,7 +1273,7 @@ public class VisualGridApp extends Application {
 		});
 
 		GridPane editorGrid = createFormGrid();
-		addFormRow(editorGrid, 0, "Herramienta", cbTool);
+		addFormRow(editorGrid, 0, "Herramienta", canvasToolCombo);
 		addFormRow(editorGrid, 1, "Material", floorPlanMaterialCombo);
 		addFormRow(editorGrid, 2, "Grosor (cm)", floorPlanThicknessField);
 		addFormRow(editorGrid, 3, "Ajuste", chkSnap);
@@ -1319,8 +1340,12 @@ public class VisualGridApp extends Application {
 
 	private void setFloorPlanTool(FloorPlanTool tool) {
 		floorPlanTool = (tool == null) ? FloorPlanTool.SELECT : tool;
+		if (canvasToolCombo != null && canvasToolCombo.getValue() != floorPlanTool) {
+			canvasToolCombo.getSelectionModel().select(floorPlanTool);
+		}
 		resetFloorPlanDraft();
 		updateFloorPlanHint(floorPlanTool.helpText());
+		updateDevicePlacementHint();
 		refreshPlanEditorOverlay();
 	}
 
@@ -1353,9 +1378,67 @@ public class VisualGridApp extends Application {
 				materialName, selectedWall.getThicknessCm()));
 	}
 
+	private void updateDevicePlacementHint() {
+		if (devicePlacementHintLabel == null) {
+			return;
+		}
+
+		String text = switch (floorPlanTool) {
+		case SENSOR -> "Modo activo: colocar sensor. Haz clic en el mapa para anadir emisores.";
+		case HUB -> "Modo activo: colocar hub. Haz clic en el mapa para ubicar o mover el receptor.";
+		default -> "Puedes anadir dispositivos por coordenadas o activar la colocacion con raton.";
+		};
+		devicePlacementHintLabel.setText(text);
+	}
+
+	private void updateDevicePositionFields(int x, int y) {
+		if (deviceXField != null) {
+			deviceXField.setText(Integer.toString(x));
+		}
+		if (deviceYField != null) {
+			deviceYField.setText(Integer.toString(y));
+		}
+	}
+
+	private int nextSensorNumber() {
+		int next = 1;
+		for (Sensor sensor : config.getSensores()) {
+			String id = sensor.getId();
+			if (id != null && id.matches("S\\d+")) {
+				next = Math.max(next, Integer.parseInt(id.substring(1)) + 1);
+			}
+		}
+		return next;
+	}
+
+	private Sensor createSensorAt(int x, int y) {
+		int sensorNumber = nextSensorNumber();
+		Sensor sensor = new Sensor("S" + sensorNumber, "Sensor " + sensorNumber, x, y, 22.5);
+		config.addSensor(sensor);
+		if (sensorSelectorCombo != null) {
+			sensorSelectorCombo.getItems().setAll(config.getSensores());
+			sensorSelectorCombo.getSelectionModel().select(sensor);
+		}
+		updateDevicePositionFields(x, y);
+		repaintAll();
+		return sensor;
+	}
+
+	private void placeHubAt(int x, int y) {
+		config.setHub(new Hub("H1", "Hub central", x, y));
+		if (sensorSelectorCombo != null) {
+			sensorSelectorCombo.getSelectionModel().clearSelection();
+		}
+		updateDevicePositionFields(x, y);
+		repaintAll();
+	}
+
 	private void updateFloorPlanHint(String text) {
 		if (floorPlanHintLabel != null) {
 			floorPlanHintLabel.setText(text);
+		}
+		if (devicePlacementHintLabel != null && (floorPlanTool == FloorPlanTool.SENSOR || floorPlanTool == FloorPlanTool.HUB)) {
+			devicePlacementHintLabel.setText(text);
 		}
 	}
 
@@ -1902,24 +1985,24 @@ public class VisualGridApp extends Application {
 		Font tickFont = Font.font(11);
 		Color gridColor = Color.web("#eeeeee");
 
-		for (int x = 0; x <= GRID_MAX_X; x++) {
+		for (int x = 0; x <= gridW; x++) {
 			double xx = px(x);
-			Line v = new Line(xx, py(0), xx, py(GRID_MAX_Y));
+			Line v = new Line(xx, py(0), xx, py(gridH));
 			v.setStroke(gridColor);
 			g.getChildren().add(v);
 			Label lab = label(Integer.toString(x), xx, py(0) + 12, tickFont, Color.GRAY);
 			g.getChildren().add(lab);
 		}
-		for (int y = 0; y <= GRID_MAX_Y; y++) {
+		for (int y = 0; y <= gridH; y++) {
 			double yy = py(y);
-			Line h = new Line(px(0), yy, px(GRID_MAX_X), yy);
+			Line h = new Line(px(0), yy, px(gridW), yy);
 			h.setStroke(gridColor);
 			g.getChildren().add(h);
 			Label lab = label(Integer.toString(y), px(0) - 20, yy - 5, tickFont, Color.GRAY);
 			g.getChildren().add(lab);
 		}
-		g.getChildren().addAll(label("X", px(GRID_MAX_X) + 15, py(0) - 10, Font.font(14), Color.BLACK),
-				label("Y", px(0) - 20, py(GRID_MAX_Y) + 15, Font.font(14), Color.BLACK));
+		g.getChildren().addAll(label("X", px(gridW) + 15, py(0) - 10, Font.font(14), Color.BLACK),
+				label("Y", px(0) - 20, py(gridH) + 15, Font.font(14), Color.BLACK));
 		root.getChildren().add(g);
 	}
 
@@ -1995,6 +2078,30 @@ public class VisualGridApp extends Application {
 			Tooltip.install(hubBox, hubTooltip);
 			hubTooltip.setText(String.format("Hub %s (%d,%d)\nSenal recibida: pendiente", h.getId(), h.getX(), h.getY()));
 
+			hubBox.setOnMouseClicked(e -> {
+				if (e.getButton() != MouseButton.PRIMARY) {
+					return;
+				}
+				if (sensorSelectorCombo != null) {
+					sensorSelectorCombo.getSelectionModel().clearSelection();
+				}
+				updateDevicePositionFields(h.getX(), h.getY());
+				updateFloorPlanHint(String.format(Locale.US,
+						"Hub seleccionado en (%d, %d). Puedes moverlo desde el mapa o ajustar su posicion.",
+						h.getX(), h.getY()));
+			});
+			tag.setOnMouseClicked(e -> {
+				if (e.getButton() != MouseButton.PRIMARY) {
+					return;
+				}
+				if (sensorSelectorCombo != null) {
+					sensorSelectorCombo.getSelectionModel().clearSelection();
+				}
+				updateDevicePositionFields(h.getX(), h.getY());
+				updateFloorPlanHint(String.format(Locale.US,
+						"Hub seleccionado en (%d, %d). Puedes moverlo desde el mapa o ajustar su posicion.",
+						h.getX(), h.getY()));
+			});
 			hubNode = new Group(hubBox, tag);
 			g.getChildren().add(hubNode);
 		}
@@ -2024,20 +2131,35 @@ public class VisualGridApp extends Application {
 				s.setAntennaType(Sensor.AntennaType.DIRECTIONAL);
 				repaintAll();
 			});
-
-			
-
-			
+			mType.getItems().addAll(miOmni, miDir);
+			cm.getItems().add(mType);
 
 			dot.setOnMousePressed(e -> {
 				if (e.isSecondaryButtonDown()) {
 					cm.show(dot, e.getScreenX(), e.getScreenY());
 				} else {
 					cm.hide();
+					if (sensorSelectorCombo != null) {
+						sensorSelectorCombo.getSelectionModel().select(s);
+					}
+					updateDevicePositionFields(s.getX(), s.getY());
+					updateFloorPlanHint(String.format(Locale.US,
+							"Sensor %s seleccionado en (%d, %d).", s.getId(), s.getX(), s.getY()));
 				}
 			});
 
 			Label lab = label(s.getNombre(), cx + 10, cy - 10, Font.font(12), Color.DARKBLUE);
+			lab.setOnMouseClicked(e -> {
+				if (e.getButton() != MouseButton.PRIMARY) {
+					return;
+				}
+				if (sensorSelectorCombo != null) {
+					sensorSelectorCombo.getSelectionModel().select(s);
+				}
+				updateDevicePositionFields(s.getX(), s.getY());
+				updateFloorPlanHint(String.format(Locale.US,
+						"Sensor %s seleccionado en (%d, %d).", s.getId(), s.getX(), s.getY()));
+			});
 
 			String tipText = String.format("%s\nPosicion: (%d,%d)\nPotencia Tx: %.1f dBm\nValor: %.1f", s.getNombre(), s.getX(),
 					s.getY(), s.getTxDbm(), s.getValue());
@@ -2222,6 +2344,22 @@ public class VisualGridApp extends Application {
 			resetFloorPlanDraft();
 			updateFloorPlanHint("Habitacion creada. Puedes seguir anadiendo espacios.");
 		}
+		case SENSOR -> {
+			int x = (int) Math.round(gridX);
+			int y = (int) Math.round(gridY);
+			Sensor sensor = createSensorAt(x, y);
+			updateFloorPlanHint(String.format(Locale.US,
+					"Sensor %s colocado en (%d, %d). Haz clic para seguir anadiendo sensores.",
+					sensor.getId(), x, y));
+		}
+		case HUB -> {
+			int x = (int) Math.round(gridX);
+			int y = (int) Math.round(gridY);
+			placeHubAt(x, y);
+			updateFloorPlanHint(String.format(Locale.US,
+					"Hub colocado en (%d, %d). Haz clic para recolocarlo o cambia de herramienta.",
+					x, y));
+		}
 		case DELETE -> {
 			Wall wall = findWallNear(px(gridX), py(gridY));
 			if (wall == null) {
@@ -2302,6 +2440,21 @@ public class VisualGridApp extends Application {
 			}
 		}
 
+		if ((floorPlanTool == FloorPlanTool.SENSOR || floorPlanTool == FloorPlanTool.HUB)
+				&& !Double.isNaN(draftHoverGridX) && !Double.isNaN(draftHoverGridY)) {
+			if (floorPlanTool == FloorPlanTool.SENSOR) {
+				Circle preview = createEditorAnchor(draftHoverGridX, draftHoverGridY, Color.web("#2563eb"));
+				preview.setRadius(6.0);
+				editorOverlayLayer.getChildren().add(preview);
+			} else {
+				Rectangle preview = new Rectangle(px(draftHoverGridX) - 8, py(draftHoverGridY) - 8, 16, 16);
+				preview.setFill(Color.web("#dc2626", 0.20));
+				preview.setStroke(Color.web("#dc2626"));
+				preview.setStrokeWidth(2.5);
+				editorOverlayLayer.getChildren().add(preview);
+			}
+		}
+
 		if (Double.isNaN(draftStartGridX) || Double.isNaN(draftStartGridY)
 				|| Double.isNaN(draftHoverGridX) || Double.isNaN(draftHoverGridY)) {
 			return;
@@ -2326,7 +2479,7 @@ public class VisualGridApp extends Application {
 			double maxX = Math.max(draftStartGridX, draftHoverGridX);
 			double maxY = Math.max(draftStartGridY, draftHoverGridY);
 
-			Rectangle preview = new Rectangle(px(minX), py(maxY), (maxX - minX) * SCALE, (maxY - minY) * SCALE);
+			Rectangle preview = new Rectangle(px(minX), py(maxY), (maxX - minX) * cellSizePx, (maxY - minY) * cellSizePx);
 			preview.setFill(Color.web("#1f6feb", 0.12));
 			preview.setStroke(Color.web("#1f6feb"));
 			preview.setStrokeWidth(3.0);
@@ -2368,8 +2521,8 @@ public class VisualGridApp extends Application {
 	}
 
 	private void updateProbeTooltip(double pixelX, double pixelY) {
-		int gx = (int) ((pixelX - MARGIN) / cellSizePx);
-		int gy = (int) ((HEIGHT - MARGIN - pixelY) / cellSizePx);
+		int gx = (int) toGridXd(pixelX);
+		int gy = (int) toGridYd(pixelY);
 		if (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH) {
 			Tooltip.uninstall(gridCanvas, probeTip);
 			return;
@@ -2461,8 +2614,8 @@ public class VisualGridApp extends Application {
 		probeTip.setShowDelay(Duration.millis(80));
 
 		gridCanvas.setOnMouseMoved(e -> {
-			int gx = (int) ((e.getX() - MARGIN) / cellSizePx);
-			int gy = (int) ((HEIGHT - MARGIN - e.getY()) / cellSizePx);
+			int gx = (int) toGridXd(e.getX());
+			int gy = (int) toGridYd(e.getY());
 			if (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH) {
 				return;
 			}
@@ -2492,8 +2645,8 @@ public class VisualGridApp extends Application {
 
 	private void enableProbe() {
 		gridCanvas.setOnMouseMoved(e -> {
-			int gx = (int) ((e.getX() - MARGIN) / cellSizePx);
-			int gy = (int) ((HEIGHT - MARGIN - e.getY()) / cellSizePx);
+			int gx = (int) toGridXd(e.getX());
+			int gy = (int) toGridYd(e.getY());
 			if (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH)
 				return;
 
@@ -3492,7 +3645,7 @@ public class VisualGridApp extends Application {
 		double dx = h.getX() - s.getX();
 		double dy = h.getY() - s.getY();
 		double dMeters = Math.hypot(dx, dy);
-		double targetRadiusPx = dMeters * SCALE; // 1 celda = 1 m
+		double targetRadiusPx = dMeters * cellSizePx; // 1 celda = 1 m
 
 		// Círculo-onda
 		Circle wave = new Circle(px(s.getX()), py(s.getY()), WAVE_INITIAL_RADIUS);
@@ -3518,7 +3671,7 @@ public class VisualGridApp extends Application {
 			wave.setOpacity(wave.getOpacity() - opacityStep);
 
 			// ¿Ha “tocado” el hub? (tolerancia de media celda)
-			if (!hitShown[0] && wave.getRadius() >= (targetRadiusPx - SCALE * 0.5)) {
+			if (!hitShown[0] && wave.getRadius() >= (targetRadiusPx - cellSizePx * 0.5)) {
 				hitShown[0] = true;
 
 				// ===== Métricas físicas (igual que en rays + paredes) =====
@@ -3660,12 +3813,12 @@ public class VisualGridApp extends Application {
 	// ============================
 	// Utilidades geométricas/UI
 	// ============================
-	private static double px(double gridX) {
-		return MARGIN + gridX * SCALE;
+	private double px(double gridX) {
+		return MARGIN + gridX * cellSizePx;
 	}
 
-	private static double py(double gridY) {
-		return HEIGHT - MARGIN - gridY * SCALE;
+	private double py(double gridY) {
+		return gridH * cellSizePx + MARGIN - gridY * cellSizePx;
 	}
 
 	private static Label label(String text, double x, double y, Font font, Color color) {
@@ -3679,12 +3832,12 @@ public class VisualGridApp extends Application {
 		return l;
 	}
 
-	private static double toGridXd(double pixelX) {
-		return (pixelX - MARGIN) / (double) SCALE;
+	private double toGridXd(double pixelX) {
+		return (pixelX - MARGIN) / (double) cellSizePx;
 	}
 
-	private static double toGridYd(double pixelY) {
-		return (HEIGHT - MARGIN - pixelY) / (double) SCALE;
+	private double toGridYd(double pixelY) {
+		return (gridH * cellSizePx + MARGIN - pixelY) / (double) cellSizePx;
 	}
 
 	private static double[] segIntersectionD(double x1, double y1, double x2, double y2, double x3, double y3,

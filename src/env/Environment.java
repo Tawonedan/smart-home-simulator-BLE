@@ -180,6 +180,7 @@ public class Environment {
     	public static final String TEMPLATE_CLASSROOM_LAB = "Aula y laboratorio";
     	public static final String TEMPLATE_WAREHOUSE_AISLES = "Almacen con pasillos";
     	public static final String TEMPLATE_FACTORY_HALL = "Nave industrial";
+    	private static final double TEMPLATE_SCALE = 1.30;
 
     	public static List<String> builtInTemplateNames() {
     		return List.of(
@@ -222,8 +223,7 @@ public class Environment {
     	}
 
     	public static List<Wall> wallsForTemplate(String templateName) {
-    		if (templateName == null) return apartmentTwoBedroomTemplate();
-    		return switch (templateName) {
+    		List<Wall> template = (templateName == null) ? apartmentTwoBedroomTemplate() : switch (templateName) {
     			case TEMPLATE_STUDIO_COMPACT -> studioCompactTemplate();
     			case TEMPLATE_APARTMENT_TWO_BEDROOM -> apartmentTwoBedroomTemplate();
     			case TEMPLATE_HOUSE_WITH_CORRIDOR -> houseWithCorridorTemplate();
@@ -238,6 +238,21 @@ public class Environment {
     			case TEMPLATE_FACTORY_HALL -> factoryHallTemplate();
     			default -> apartmentTwoBedroomTemplate();
     		};
+    		return scaleTemplate(template, TEMPLATE_SCALE);
+    	}
+
+    	private static List<Wall> scaleTemplate(List<Wall> template, double scale) {
+    		List<Wall> scaled = new ArrayList<>();
+    		for (Wall wall : template) {
+    			scaled.add(new Wall(
+    					wall.getX1() * scale,
+    					wall.getY1() * scale,
+    					wall.getX2() * scale,
+    					wall.getY2() * scale,
+    					wall.getMaterial(),
+    					wall.getThicknessCm()));
+    		}
+    		return scaled;
     	}
 
     	private static List<Wall> studioCompactTemplate() {
