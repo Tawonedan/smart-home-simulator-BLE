@@ -1,1 +1,26 @@
+# Build output
 /bin/
+/build/
+/out/
+*.class
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDEs (Eclipse/IntelliJ/VS Code regenerate these from the Gradle build)
+.classpath
+.project
+.settings/
+.metadata/
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets / notes (never commit credentials)
+*.env
+secrets*
