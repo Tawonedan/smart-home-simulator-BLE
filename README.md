@@ -1,10 +1,11 @@
 # Smart Home Simulator
 
-[![CI](https://github.com/Phlekies/Smart_Home_Simulator_2/actions/workflows/ci.yml/badge.svg)](https://github.com/Phlekies/Smart_Home_Simulator_2/actions/workflows/ci.yml)
+[![CI](https://github.com/Phlekies/smart-home-simulator/actions/workflows/ci.yml/badge.svg)](https://github.com/Phlekies/smart-home-simulator/actions/workflows/ci.yml)
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![JavaFX 21](https://img.shields.io/badge/JavaFX-21-blue)
 ![Gradle](https://img.shields.io/badge/build-Gradle-02303A)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/Phlekies/smart-home-simulator)](https://github.com/Phlekies/smart-home-simulator/releases/latest)
 
 Desktop simulator of **indoor wireless propagation** for smart-home and IoT deployments.
 Draw a floor plan, drop sensors and a hub, and see how walls, materials, reflections and
@@ -13,6 +14,9 @@ budget. One click finds the hub position that serves every sensor best.
 
 ![Smart apartment demo: coverage heatmap, sensor links and side panel](docs/images/overview.png)
 
+**[Download for Windows, macOS or Linux](https://github.com/Phlekies/smart-home-simulator/releases/latest)**
+— no Java installation needed.
+
 ## Highlights
 
 - **Multipath propagation engine**: direct path, specular reflections (image method),
@@ -20,7 +24,8 @@ budget. One click finds the hub position that serves every sensor best.
   (*rays*) or as phasors that interfere (*waves*). Walls attenuate according to their
   material, thickness and frequency band.
 - **Live coverage heatmap** computed in the background, with a colour legend and coverage
-  statistics. Drag any sensor or the hub and everything updates while you move it.
+  statistics. Drag any sensor or the hub and everything updates while you move it; zoom and
+  pan around the plan.
 - **Automatic hub placement**: evaluates every position of the building and picks the one
   that reaches every sensor with the largest worst-case margin (max-min optimisation).
 - **Sensor links at a glance**: green/red lines and a table with received power, SNR and
@@ -31,21 +36,41 @@ budget. One click finds the hub position that serves every sensor best.
   self-contained HTML coverage report.
 - **Dark and light themes** (AtlantaFX), keyboard shortcuts, formula-validation window.
 
-## Hub placement in action
+## See it in action
 
-The warehouse example keeps the hub in the office, and the metal shelving leaves three
-sensors out of range (red links). *Optimise hub* tries the 1,548 whole-metre positions of
-the building and moves the hub to the one where all five sensors connect.
+**Live editing.** Dragging the thermostat through the apartment: the heatmap, the coverage
+figures in the legend and the sensor-hub links are recomputed while it moves.
 
-| Before: 3 of 5 sensors out of reach | After: every link above 10 dB of margin |
-| --- | --- |
-| ![Warehouse before optimisation](docs/images/warehouse-before.png) | ![Warehouse after optimisation](docs/images/warehouse-after.png) |
+![Dragging a sensor with live recomputation](docs/images/live-editing.gif)
+
+**Hub placement.** In the warehouse example the hub sits in the office and the metal shelving
+leaves three sensors out of range (red links). *Optimise hub* tries the 1,548 whole-metre
+positions of the building and moves the hub to the one where all five sensors connect.
+
+![Automatic hub placement](docs/images/hub-optimisation.gif)
 
 | Ray tracing from one sensor | Light theme |
 | --- | --- |
-| ![Rays reflecting inside a room](docs/images/rays.png) | ![Light theme](docs/images/light.png) |
+| ![Rays reflecting and crossing walls](docs/images/ray-tracing.gif) | ![Light theme](docs/images/light.png) |
+
+The ray animation is illustrative: it shows how energy reflects and passes through walls.
+The numbers (heatmap, links, optimiser) come from the propagation engine described below.
 
 ## Getting started
+
+### Download
+
+Ready-to-run packages are attached to every
+[release](https://github.com/Phlekies/smart-home-simulator/releases/latest). Each one bundles its
+own Java runtime:
+
+| System | Package | How to run |
+| --- | --- | --- |
+| Windows | `SmartHomeSimulator-*-windows-x64.zip` | Unzip and run `SmartHomeSimulator.exe` |
+| macOS (Apple silicon) | `SmartHomeSimulator-*-macos-arm64.dmg` | Drag the app to Applications; the first time, right-click it and choose *Open* |
+| Linux (Debian/Ubuntu) | `SmartHomeSimulator-*-linux-x64.deb` | `sudo apt install ./SmartHomeSimulator-*.deb` |
+
+### Build from source
 
 Requirements: **JDK 21 or newer**. Gradle and every library (JavaFX included) are
 downloaded automatically by the Gradle Wrapper.
@@ -74,8 +99,9 @@ Example projects live in [`examples/`](examples) and can be opened with *File �
 
 | Command | What it does |
 | --- | --- |
-| `./gradlew test` | Runs the unit, regression and architecture tests |
+| `./gradlew test` | Runs the unit, regression, architecture and headless UI tests |
 | `./gradlew build` | Compiles, tests, writes a coverage report and packages `build/distributions/*.zip` |
+| `./gradlew jpackage` | Builds a native, self-contained application for the current OS in `build/jpackage` |
 
 ### Keyboard shortcuts
 
@@ -86,6 +112,7 @@ Example projects live in [`examples/`](examples) and can be opened with *File �
 | Delete / Esc | Delete the selection / cancel drawing |
 | Ctrl+H / Ctrl+L / Ctrl+T | Toggle heatmap, sensor links, dark theme |
 | Ctrl+P | Optimise the hub position |
+| Ctrl + mouse wheel, Ctrl+= / Ctrl+- / Ctrl+0 | Zoom in / out / fit; drag with the middle button to pan |
 | Ctrl+E / Ctrl+R | Export plan image / coverage report |
 
 ## The physics
@@ -152,8 +179,8 @@ flowchart TD
 
 ## Testing
 
-`./gradlew test` runs 183 tests (JUnit 6), executed on Linux, Windows and macOS by the CI
-pipeline, with 93–100 % line coverage of the non-UI layers:
+`./gradlew test` runs 192 tests (JUnit 6), executed on Linux, Windows and macOS by the CI
+pipeline, with 93–100 % line coverage of the non-UI layers and 81 % overall:
 
 - **Physics** checked against textbook values: Friis loss, noise floor of a 20 MHz channel,
   BPSK needing ~9.6 dB for a BER of 10⁻⁵, the 6 dB knife-edge loss at grazing incidence...
@@ -165,6 +192,8 @@ pipeline, with 93–100 % line coverage of the non-UI layers:
 - **Projects and reports**: JSON round trips, invalid and newer files rejected, the example
   projects load, HTML output is escaped.
 - **Application state**: undo/redo of every edit, device moves, isolated snapshots.
+- **User interface**: smoke tests start the real application on the headless Monocle platform
+  and drag a sensor, draw and undo a wall, optimise the hub, zoom, switch theme and export.
 - **Architecture** rules with ArchUnit.
 
 ## Limitations
@@ -176,7 +205,8 @@ pipeline, with 93–100 % line coverage of the non-UI layers:
 ## Project history
 
 Started in 2025 as a Java learning project and rebuilt in 2026 into a layered, tested and
-continuously integrated application.
+continuously integrated application. See the [changelog](CHANGELOG.md) for the details, and
+[CONTRIBUTING.md](CONTRIBUTING.md) to build, test or propose changes.
 
 ## License
 
