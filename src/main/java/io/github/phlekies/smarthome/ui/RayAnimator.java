@@ -26,7 +26,6 @@ final class RayAnimator {
     private static final double SPEED_M_PER_S = 33.0;
     private static final double STRONG_DBM = -40.0;
     private static final double WEAK_DBM = -100.0;
-    private static final Color RAY_COLOR = Color.web("#ff8f00");
 
     private final PlanView view;
     private AnimationTimer timer;
@@ -48,7 +47,8 @@ final class RayAnimator {
         double totalLength = result.maxPathLengthMeters();
         GraphicsContext g = view.raysCanvas().getGraphicsContext2D();
         g.setLineCap(StrokeLineCap.ROUND);
-        g.setLineWidth(1.4);
+        g.setLineWidth(1.1);
+        Color color = view.palette().ray();
 
         timer = new AnimationTimer() {
             private long startNanos = -1;
@@ -62,7 +62,7 @@ final class RayAnimator {
                 }
                 double front = Math.min(totalLength, (now - startNanos) / 1e9 * SPEED_M_PER_S);
                 for (RaySegment segment : segments) {
-                    drawPortion(g, segment, drawnMeters, front);
+                    drawPortion(g, color, segment, drawnMeters, front);
                 }
                 drawnMeters = front;
                 while (nextHit < hits.size() && hits.get(nextHit).pathLengthMeters() <= front) {
@@ -89,7 +89,8 @@ final class RayAnimator {
     }
 
     /** Draws the part of a segment travelled between two path lengths. */
-    private static void drawPortion(GraphicsContext g, RaySegment segment, double fromMeters, double toMeters) {
+    private static void drawPortion(GraphicsContext g, Color color, RaySegment segment, double fromMeters,
+                                    double toMeters) {
         double from = Math.max(fromMeters, segment.startDistanceMeters());
         double to = Math.min(toMeters, segment.endDistanceMeters());
         double length = segment.lengthMeters();
@@ -101,7 +102,7 @@ final class RayAnimator {
         double power = segment.startPowerDbm() + (segment.endPowerDbm() - segment.startPowerDbm()) * f1;
         double strength = Math.max(0.0, Math.min(1.0, (power - WEAK_DBM) / (STRONG_DBM - WEAK_DBM)));
 
-        g.setStroke(RAY_COLOR.deriveColor(0, 1, 1, 0.15 + 0.8 * strength));
+        g.setStroke(color.deriveColor(0, 1, 1, 0.08 + 0.62 * strength));
         g.strokeLine(
                 toPixelX(segment.x1() + (segment.x2() - segment.x1()) * f0),
                 toPixelY(segment.y1() + (segment.y2() - segment.y1()) * f0),

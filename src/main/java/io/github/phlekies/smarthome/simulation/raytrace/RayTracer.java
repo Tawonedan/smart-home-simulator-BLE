@@ -36,7 +36,7 @@ public final class RayTracer {
                            double powerFloorDbm, double hubCaptureRadiusMeters, int maxSegments) {
 
         public static Settings defaults() {
-            return new Settings(10.0, 6, 60.0, -100.0, 0.30, 20_000);
+            return new Settings(10.0, 3, 60.0, -100.0, 0.30, 20_000);
         }
     }
 

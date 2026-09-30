@@ -1,0 +1,192 @@
+{
+  "format" : "smart-home-simulator",
+  "version" : 1,
+  "template" : "TWO_BEDROOM_APARTMENT",
+  "environment" : {
+    "frequencyMHz" : 2400.0,
+    "bandwidthHz" : 2.0E7,
+    "noiseFigureDb" : 7.0,
+    "extraLossDbPerMeter" : 0.0,
+    "systemGainDb" : 0.0
+  },
+  "settings" : {
+    "propagationMode" : "RAYS",
+    "heatmapMetric" : "POWER_DBM",
+    "fading" : "NONE",
+    "diffraction" : true,
+    "scattering" : true,
+    "parallelComputation" : true,
+    "pathLossExponent" : 2.1,
+    "ricianKFactorDb" : 6.0,
+    "cullingThresholdDbm" : -115.0,
+    "receiverSensitivityDbm" : -92.0,
+    "maxReflectionPaths" : 2,
+    "maxDiffractionPaths" : 2,
+    "maxScatteringPaths" : 1
+  },
+  "walls" : [ {
+    "x1" : 1.3,
+    "y1" : 1.3,
+    "x2" : 41.6,
+    "y2" : 1.3,
+    "material" : "Brick",
+    "thicknessCm" : 12.0
+  }, {
+    "x1" : 41.6,
+    "y1" : 1.3,
+    "x2" : 41.6,
+    "y2" : 28.6,
+    "material" : "Brick",
+    "thicknessCm" : 12.0
+  }, {
+    "x1" : 41.6,
+    "y1" : 28.6,
+    "x2" : 1.3,
+    "y2" : 28.6,
+    "material" : "Brick",
+    "thicknessCm" : 12.0
+  }, {
+    "x1" : 1.3,
+    "y1" : 28.6,
+    "x2" : 1.3,
+    "y2" : 1.3,
+    "material" : "Brick",
+    "thicknessCm" : 12.0
+  }, {
+    "x1" : 15.600000000000001,
+    "y1" : 1.3,
+    "x2" : 15.600000000000001,
+    "y2" : 19.5,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 28.6,
+    "y1" : 9.1,
+    "x2" : 28.6,
+    "y2" : 28.6,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 1.3,
+    "y1" : 19.5,
+    "x2" : 15.600000000000001,
+    "y2" : 19.5,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 15.600000000000001,
+    "y1" : 9.1,
+    "x2" : 28.6,
+    "y2" : 9.1,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 15.600000000000001,
+    "y1" : 19.5,
+    "x2" : 28.6,
+    "y2" : 19.5,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 22.1,
+    "y1" : 9.1,
+    "x2" : 22.1,
+    "y2" : 19.5,
+    "material" : "Wood",
+    "thicknessCm" : 6.0
+  }, {
+    "x1" : 33.800000000000004,
+    "y1" : 1.3,
+    "x2" : 33.800000000000004,
+    "y2" : 9.1,
+    "material" : "Wood",
+    "thicknessCm" : 6.0
+  } ],
+  "sensors" : [ {
+    "id" : "S1",
+    "name" : "Thermostat",
+    "x" : 7,
+    "y" : 12,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S2",
+    "name" : "Smoke detector",
+    "x" : 24,
+    "y" : 5,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S3",
+    "name" : "Door sensor",
+    "x" : 40,
+    "y" : 3,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S4",
+    "name" : "Window sensor",
+    "x" : 4,
+    "y" : 26,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S5",
+    "name" : "Smart plug",
+    "x" : 20,
+    "y" : 25,
+    "txPowerDbm" : 3.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S6",
+    "name" : "Security camera",
+    "x" : 39,
+    "y" : 26,
+    "txPowerDbm" : 10.0,
+    "txGainDb" : 3.0,
+    "antenna" : "DIRECTIONAL",
+    "orientationDeg" : 225.0,
+    "beamwidthDeg" : 120.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  } ],
+  "hub" : {
+    "id" : "H1",
+    "name" : "Hub",
+    "x" : 5,
+    "y" : 4,
+    "receiverGainDb" : 0.0,
+    "polarizationDeg" : 0.0
+  }
+}

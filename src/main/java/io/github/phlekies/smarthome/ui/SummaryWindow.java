@@ -81,13 +81,13 @@ final class SummaryWindow {
         page.getChildren().add(card("Scenario", "Current indoor floor plan.", scenario));
 
         FlowPane tiles = new FlowPane(12, 12,
-                metric("Noise floor", Format.dbm(env.noiseFloorDbm()), "#0f766e"),
-                metric("Rx sensitivity", Format.dbm(settings.getReceiverSensitivityDbm()), "#7c3aed"),
-                metric("Wavelength", Format.meters(env.wavelengthMeters()), "#1d4ed8"));
+                metric("Noise floor", Format.dbm(env.noiseFloorDbm())),
+                metric("Rx sensitivity", Format.dbm(settings.getReceiverSensitivityDbm())),
+                metric("Wavelength", Format.meters(env.wavelengthMeters())));
         if (hubLink != null) {
             tiles.getChildren().addAll(
-                    metric("SINR at hub", Format.db(hubLink.sinrDb()), "#2563eb"),
-                    metric("Capacity at hub", Format.mbps(hubLink.capacityMbps()), "#b45309"));
+                    metric("SINR at hub", Format.db(hubLink.sinrDb())),
+                    metric("Capacity at hub", Format.mbps(hubLink.capacityMbps())));
         }
         page.getChildren().add(card("Key indicators", "", tiles));
 
@@ -150,11 +150,11 @@ final class SummaryWindow {
         }
 
         page.getChildren().add(card("At a glance", "", new FlowPane(12, 12,
-                metric("Total power", Format.dbm(hubLink.totalPowerDbm()), "#1d4ed8"),
-                metric("SINR", Format.db(hubLink.sinrDb()), "#0f766e"),
-                metric("BER", Format.ber(hubLink.ber()), "#7c3aed"),
-                metric("Capacity", Format.mbps(hubLink.capacityMbps()), "#b45309"),
-                metric("Link margin", Format.db(hubLink.linkMarginDb()), "#be123c"))));
+                metric("Total power", Format.dbm(hubLink.totalPowerDbm())),
+                metric("SINR", Format.db(hubLink.sinrDb())),
+                metric("BER", Format.ber(hubLink.ber())),
+                metric("Capacity", Format.mbps(hubLink.capacityMbps())),
+                metric("Link margin", Format.db(hubLink.linkMarginDb())))));
 
         GridPane details = grid();
         row(details, "Dominant sensor", hubLink.dominantSensorId());
@@ -205,10 +205,10 @@ final class SummaryWindow {
                         text("Place a hub to see received power, BER, capacity and link margin.")));
             } else {
                 content.getChildren().add(card("Link to hub", "", new FlowPane(12, 12,
-                        metric("Rx power", Format.dbm(link.totalPowerDbm()), "#1d4ed8"),
-                        metric("SNR", Format.db(link.snrDb()), "#0f766e"),
-                        metric("Link margin", Format.db(link.linkMarginDb()), "#be123c"),
-                        metric("Capacity", Format.mbps(link.capacityMbps()), "#b45309"))));
+                        metric("Rx power", Format.dbm(link.totalPowerDbm())),
+                        metric("SNR", Format.db(link.snrDb())),
+                        metric("Link margin", Format.db(link.linkMarginDb())),
+                        metric("Capacity", Format.mbps(link.capacityMbps())))));
 
                 GridPane details = grid();
                 row(details, "Distance to hub", Format.meters(sensor.distanceTo(model.hub().orElseThrow())));
@@ -314,12 +314,11 @@ final class SummaryWindow {
         grid.addRow(grid.getRowCount(), name, content);
     }
 
-    private static VBox metric(String label, String value, String accent) {
+    private static VBox metric(String label, String value) {
         Label name = new Label(label);
         name.getStyleClass().add("metric-label");
         Label number = new Label(value);
         number.getStyleClass().add("metric-value");
-        number.setStyle("-fx-text-fill: " + accent + ";");
         VBox tile = new VBox(name, number);
         tile.getStyleClass().add("metric-tile");
         return tile;

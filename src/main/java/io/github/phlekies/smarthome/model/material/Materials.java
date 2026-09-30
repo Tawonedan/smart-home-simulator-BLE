@@ -1,6 +1,7 @@
 package io.github.phlekies.smarthome.model.material;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Catalogue of built-in indoor wall materials. */
 public final class Materials {
@@ -22,6 +23,11 @@ public final class Materials {
 
     public static List<Material> all() {
         return ALL;
+    }
+
+    /** Built-in material with the given name (case-insensitive). */
+    public static Optional<Material> byName(String name) {
+        return ALL.stream().filter(material -> material.getName().equalsIgnoreCase(name)).findFirst();
     }
 
     /** Evaluates how a wave interacts with a wall at the given frequency and incidence angle. */

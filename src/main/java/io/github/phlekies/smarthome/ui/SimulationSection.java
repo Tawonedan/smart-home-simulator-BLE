@@ -10,11 +10,10 @@ import javafx.scene.layout.VBox;
 import io.github.phlekies.smarthome.app.SimulatorModel;
 import io.github.phlekies.smarthome.model.Environment;
 import io.github.phlekies.smarthome.simulation.FadingModel;
-import io.github.phlekies.smarthome.simulation.MapMetric;
 import io.github.phlekies.smarthome.simulation.PropagationMode;
 import io.github.phlekies.smarthome.simulation.SimulationSettings;
 
-/** Side panel section with the heatmap and propagation model options. */
+/** Side panel section with the propagation model options. */
 final class SimulationSection {
 
     private enum Band {
@@ -29,6 +28,10 @@ final class SimulationSection {
             this.freqMHz = freqMHz;
         }
 
+        static Band of(double freqMHz) {
+            return freqMHz < 3000 ? WIFI_2_4 : WIFI_5;
+        }
+
         @Override
         public String toString() {
             return label;
@@ -36,18 +39,15 @@ final class SimulationSection {
     }
 
     private final SimulatorModel model;
-    private final SimulationController controller;
 
-    SimulationSection(SimulatorModel model, SimulationController controller) {
+    SimulationSection(SimulatorModel model) {
         this.model = model;
-        this.controller = controller;
     }
 
     VBox build() {
         SimulationSettings settings = model.settings();
 
-        ComboBox<Band> bandCombo = Ui.comboBox(List.of(Band.values()), Band.WIFI_2_4);
-        ComboBox<MapMetric> metricCombo = Ui.comboBox(List.of(MapMetric.values()), settings.getMapMetric());
+        ComboBox<Band> bandCombo = Ui.comboBox(List.of(Band.values()), Band.of(model.environment().getFreqMHz()));
         ComboBox<PropagationMode> modeCombo = Ui.comboBox(List.of(PropagationMode.values()),
                 settings.getPropagationMode());
         ComboBox<FadingModel> fadingCombo = Ui.comboBox(List.of(FadingModel.values()), settings.getFadingModel());
@@ -56,12 +56,10 @@ final class SimulationSection {
         CheckBox parallel = Ui.checkBox("Parallel computation", settings.isParallelComputation());
 
         bandCombo.setOnAction(e -> {
-            model.environment().setFreqMHz(bandCombo.getValue().freqMHz);
-            model.radioChanged();
-        });
-        metricCombo.setOnAction(e -> {
-            settings.setMapMetric(metricCombo.getValue());
-            model.displayChanged();
+            if (bandCombo.getValue().freqMHz != model.environment().getFreqMHz()) {
+                model.environment().setFreqMHz(bandCombo.getValue().freqMHz);
+                model.radioChanged();
+            }
         });
         modeCombo.setOnAction(e -> {
             if (modeCombo.getValue() != settings.getPropagationMode()) {
@@ -70,8 +68,10 @@ final class SimulationSection {
             }
         });
         fadingCombo.setOnAction(e -> {
-            settings.setFadingModel(fadingCombo.getValue());
-            model.settingsChanged();
+            if (fadingCombo.getValue() != settings.getFadingModel()) {
+                settings.setFadingModel(fadingCombo.getValue());
+                model.settingsChanged();
+            }
         });
         diffraction.setOnAction(e -> {
             settings.setDiffractionEnabled(diffraction.isSelected());
@@ -86,25 +86,24 @@ final class SimulationSection {
             model.settingsChanged();
         });
 
-        // The ray and wave actions switch the propagation mode; keep the combo in sync.
+        // Loading a project or launching rays/waves changes these settings; keep the controls in sync.
         model.addListener(change -> {
-            if (change == SimulatorModel.Change.SETTINGS) {
-                modeCombo.getSelectionModel().select(settings.getPropagationMode());
-            }
+            bandCombo.getSelectionModel().select(Band.of(model.environment().getFreqMHz()));
+            modeCombo.getSelectionModel().select(settings.getPropagationMode());
+            fadingCombo.getSelectionModel().select(settings.getFadingModel());
+            diffraction.setSelected(settings.isDiffractionEnabled());
+            scattering.setSelected(settings.isScatteringEnabled());
+            parallel.setSelected(settings.isParallelComputation());
         });
 
         GridPane form = Ui.formGrid();
         Ui.addRow(form, "Frequency band", bandCombo);
-        Ui.addRow(form, "Heatmap metric", metricCombo);
         Ui.addRow(form, "Propagation", modeCombo);
         Ui.addRow(form, "Fading", fadingCombo);
         Ui.addRow(form, "Mechanisms", new VBox(8, diffraction, scattering, parallel));
 
-        GridPane buttons = Ui.buttonGrid();
-        buttons.add(Ui.primaryButton("Show heatmap", e -> controller.showHeatmap()), 0, 0);
-        buttons.add(Ui.secondaryButton("Hide heatmap", e -> controller.hideHeatmap()), 1, 0);
-
-        return Ui.section("Simulation", form, buttons,
-                Ui.hint("The heatmap is computed in the background and refreshes automatically after every change."));
+        return Ui.section("Propagation model", form,
+                Ui.hint("Rays add path powers; waves add them as phasors, so paths can interfere. "
+                        + "The heatmap refreshes in the background after every change."));
     }
 }

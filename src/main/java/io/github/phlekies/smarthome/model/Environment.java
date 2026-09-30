@@ -28,13 +28,21 @@ public class Environment {
     /** Deep copy (walls included), safe to hand to a background computation. */
     public Environment copy() {
         Environment copy = new Environment();
-        copy.freqMHz = freqMHz;
-        copy.bandwidthHz = bandwidthHz;
-        copy.noiseFigureDb = noiseFigureDb;
-        copy.alphaDbPerMeter = alphaDbPerMeter;
-        copy.systemGainDb = systemGainDb;
-        copy.setWalls(walls);
+        copy.copyFrom(this);
         return copy;
+    }
+
+    /** Overwrites every parameter and wall of this environment with copies of another one's. */
+    public void copyFrom(Environment other) {
+        if (other == this) {
+            return;
+        }
+        freqMHz = other.freqMHz;
+        bandwidthHz = other.bandwidthHz;
+        noiseFigureDb = other.noiseFigureDb;
+        alphaDbPerMeter = other.alphaDbPerMeter;
+        systemGainDb = other.systemGainDb;
+        setWalls(other.walls);
     }
 
     public double noiseFloorDbm() {

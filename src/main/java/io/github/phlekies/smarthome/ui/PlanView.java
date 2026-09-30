@@ -7,15 +7,21 @@ import static io.github.phlekies.smarthome.ui.PlanCoordinates.PLAN_WIDTH_PX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.VIEW_HEIGHT_PX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.VIEW_WIDTH_PX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.WIDTH_METERS;
+import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersX;
+import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersY;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toPixelX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toPixelY;
+
+import java.util.List;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
 import javafx.geometry.VPos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
@@ -31,13 +37,17 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 
+import io.github.phlekies.smarthome.app.LinkSummary;
 import io.github.phlekies.smarthome.app.SimulatorModel;
 import io.github.phlekies.smarthome.model.AntennaType;
 import io.github.phlekies.smarthome.model.Device;
@@ -46,18 +56,11 @@ import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.Wall;
 
 /**
- * Top-down view of the floor plan. Layers, bottom to top: grid, heatmap, walls, rays,
- * transient effects (waves, flashes), editor overlay and devices.
+ * Top-down view of the floor plan. Layers, bottom to top: grid, heatmap, walls, sensor-hub
+ * links, rays, transient effects (waves, flashes), editor overlay and devices. Devices can be
+ * dragged; the rest of the interaction is handled by {@link FloorPlanEditor}.
  */
 final class PlanView extends Pane {
-
-    private static final Color PLAN_BACKGROUND = Color.WHITE;
-    private static final Color GRID_LINE = Color.web("#e6ebf0");
-    private static final Color GRID_LINE_MAJOR = Color.web("#d2dae2");
-    private static final Color AXIS_LABEL = Color.web("#8795a1");
-    private static final Color SENSOR_FILL = Color.web("#1e88e5");
-    private static final Color HUB_FILL = Color.web("#dc2626");
-    private static final Color SELECTION = Color.web("#f59e0b");
 
     private final SimulatorModel model;
     private final UiState state;
@@ -65,6 +68,7 @@ final class PlanView extends Pane {
     private final Canvas gridCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
     private final ImageView heatmapView = new ImageView();
     private final Canvas wallsCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+    private final Canvas linksCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
     private final Canvas raysCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
     private final Pane effectsLayer = new Pane();
     private final Group overlay = new Group();
@@ -72,12 +76,17 @@ final class PlanView extends Pane {
 
     private final Tooltip hubTooltip = new Tooltip();
     private Node hubNode;
+    private PlanPalette palette = PlanPalette.DARK;
+
+    /** Device being dragged; while set, device nodes are moved instead of rebuilt. */
+    private Device dragged;
+    private Node draggedNode;
 
     PlanView(SimulatorModel model, UiState state) {
         this.model = model;
         this.state = state;
 
-        getStyleClass().add("plan-area");
+        getStyleClass().add("plan-view");
         setMinSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
         setPrefSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
         setMaxSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
@@ -86,22 +95,24 @@ final class PlanView extends Pane {
         heatmapView.setLayoutY(MARGIN_PX);
         heatmapView.setFitWidth(PLAN_WIDTH_PX);
         heatmapView.setFitHeight(PLAN_HEIGHT_PX);
-        heatmapView.setSmooth(false);
-        heatmapView.setOpacity(0.75);
+        heatmapView.setSmooth(true); // bilinear upscaling of the 1 px-per-metre image
+        heatmapView.setOpacity(0.78);
         heatmapView.setVisible(false);
 
         effectsLayer.setClip(new Rectangle(MARGIN_PX, MARGIN_PX, PLAN_WIDTH_PX, PLAN_HEIGHT_PX));
         effectsLayer.setPrefSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
 
-        for (Node passive : new Node[] { gridCanvas, heatmapView, wallsCanvas, raysCanvas, effectsLayer, overlay }) {
+        for (Node passive : new Node[] { gridCanvas, heatmapView, wallsCanvas, linksCanvas, raysCanvas, effectsLayer, overlay }) {
             passive.setMouseTransparent(true);
         }
-        getChildren().addAll(gridCanvas, heatmapView, wallsCanvas, raysCanvas, effectsLayer, overlay, devicesLayer);
+        getChildren().addAll(gridCanvas, heatmapView, wallsCanvas, linksCanvas, raysCanvas, effectsLayer, overlay,
+                devicesLayer);
 
-        drawGrid();
-        redrawWalls();
-        redrawDevices();
         state.selectedDevice.addListener((obs, old, selected) -> redrawDevices());
+        state.links.addListener((obs, old, links) -> redrawLinks());
+        state.linksVisible.addListener((obs, old, visible) -> redrawLinks());
+        state.darkTheme.addListener((obs, old, dark) -> applyPalette(PlanPalette.of(dark)));
+        applyPalette(PlanPalette.of(state.darkTheme.get()));
     }
 
     Group overlay() {
@@ -114,6 +125,10 @@ final class PlanView extends Pane {
 
     Canvas raysCanvas() {
         return raysCanvas;
+    }
+
+    PlanPalette palette() {
+        return palette;
     }
 
     void showHeatmap(Image image) {
@@ -129,28 +144,37 @@ final class PlanView extends Pane {
         raysCanvas.getGraphicsContext2D().clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
     }
 
+    private void applyPalette(PlanPalette newPalette) {
+        palette = newPalette;
+        drawGrid();
+        redrawWalls();
+        redrawLinks();
+        redrawDevices();
+    }
+
     // ---------------------------------------------------------------------------------------
     // Static layers
     // ---------------------------------------------------------------------------------------
 
     private void drawGrid() {
         GraphicsContext g = gridCanvas.getGraphicsContext2D();
-        g.setFill(PLAN_BACKGROUND);
+        g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        g.setFill(palette.background());
         g.fillRect(MARGIN_PX, MARGIN_PX, PLAN_WIDTH_PX, PLAN_HEIGHT_PX);
 
         g.setLineWidth(1.0);
         for (int x = 0; x <= WIDTH_METERS; x++) {
-            g.setStroke(x % 5 == 0 ? GRID_LINE_MAJOR : GRID_LINE);
+            g.setStroke(x % 5 == 0 ? palette.gridLineMajor() : palette.gridLine());
             double px = Math.round(toPixelX(x)) + 0.5;
             g.strokeLine(px, toPixelY(0), px, toPixelY(HEIGHT_METERS));
         }
         for (int y = 0; y <= HEIGHT_METERS; y++) {
-            g.setStroke(y % 5 == 0 ? GRID_LINE_MAJOR : GRID_LINE);
+            g.setStroke(y % 5 == 0 ? palette.gridLineMajor() : palette.gridLine());
             double py = Math.round(toPixelY(y)) + 0.5;
             g.strokeLine(toPixelX(0), py, toPixelX(WIDTH_METERS), py);
         }
 
-        g.setFill(AXIS_LABEL);
+        g.setFill(palette.axisLabel());
         g.setFont(Font.font(11));
         g.setTextBaseline(VPos.TOP);
         g.setTextAlign(TextAlignment.CENTER);
@@ -174,10 +198,30 @@ final class PlanView extends Pane {
         g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
         g.setLineCap(StrokeLineCap.ROUND);
         for (Wall wall : model.walls()) {
-            g.setStroke(MaterialPalette.colorOf(wall.getMaterial()));
-            g.setLineWidth(MaterialPalette.strokeWidth(wall.getThicknessCm()));
+            g.setStroke(palette.materialColor(wall.getMaterial()));
+            g.setLineWidth(PlanPalette.wallStroke(wall.getThicknessCm()));
             g.strokeLine(toPixelX(wall.getX1()), toPixelY(wall.getY1()), toPixelX(wall.getX2()), toPixelY(wall.getY2()));
         }
+    }
+
+    /** Dashed line from every sensor to the hub: green if the hub can decode it, red otherwise. */
+    private void redrawLinks() {
+        GraphicsContext g = linksCanvas.getGraphicsContext2D();
+        g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        Hub hub = model.hub().orElse(null);
+        List<LinkSummary> links = state.links.get();
+        if (!state.linksVisible.get() || hub == null) {
+            return;
+        }
+        g.setLineWidth(1.6);
+        g.setLineDashes(6, 5);
+        for (LinkSummary link : links) {
+            Color color = link.connected() ? palette.linkOk() : palette.linkBad();
+            g.setStroke(color.deriveColor(0, 1, 1, 0.85));
+            g.strokeLine(toPixelX(link.sensor().getX()), toPixelY(link.sensor().getY()),
+                    toPixelX(hub.getX()), toPixelY(hub.getY()));
+        }
+        g.setLineDashes();
     }
 
     // ---------------------------------------------------------------------------------------
@@ -185,6 +229,13 @@ final class PlanView extends Pane {
     // ---------------------------------------------------------------------------------------
 
     void redrawDevices() {
+        if (dragged != null) {
+            // Rebuilding the nodes would cancel the drag gesture; just follow the device.
+            draggedNode.setTranslateX(toPixelX(dragged.getX()) - (double) draggedNode.getProperties().get("originX"));
+            draggedNode.setTranslateY(toPixelY(dragged.getY()) - (double) draggedNode.getProperties().get("originY"));
+            redrawLinks();
+            return;
+        }
         devicesLayer.getChildren().clear();
         hubNode = null;
         Device selected = state.selectedDevice.get();
@@ -192,23 +243,17 @@ final class PlanView extends Pane {
         model.hub().ifPresent(hub -> {
             double cx = toPixelX(hub.getX());
             double cy = toPixelY(hub.getY());
-            Rectangle box = new Rectangle(cx - 7, cy - 7, 14, 14);
-            box.setArcWidth(4);
-            box.setArcHeight(4);
-            box.setFill(HUB_FILL);
-            box.setStroke(hub == selected ? SELECTION : HUB_FILL.darker());
+            Rectangle box = new Rectangle(cx - 8, cy - 8, 16, 16);
+            box.setArcWidth(5);
+            box.setArcHeight(5);
+            box.setFill(palette.hub());
+            box.setStroke(hub == selected ? palette.selection() : palette.hub().darker());
             box.setStrokeWidth(hub == selected ? 3 : 1.5);
-            Label tag = deviceLabel(hub.getName(), cx, cy, HUB_FILL.darker());
-            Group node = new Group(box, tag);
-            node.setOnMouseClicked(e -> {
-                if (e.getButton() == MouseButton.PRIMARY) {
-                    selectDevice(hub);
-                }
-                e.consume();
-            });
-            node.setOnMousePressed(MouseEvent::consume);
-            Tooltip.install(box, new Tooltip(String.format("%s at (%d, %d)%nRx gain %.1f dB, polarization %.0f°",
+            Circle core = new Circle(cx, cy, 3, Color.WHITE);
+            Group node = new Group(box, core, deviceLabel(hub.getName(), cx, cy));
+            Tooltip.install(box, new Tooltip(String.format("%s at (%d, %d)%nRx gain %.1f dB, polarization %.0f°%nDrag to move",
                     hub.getName(), hub.getX(), hub.getY(), hub.getReceiverGainDb(), hub.getPolarizationDeg())));
+            makeInteractive(node, hub, null);
             hubNode = box;
             devicesLayer.getChildren().add(node);
         });
@@ -216,31 +261,71 @@ final class PlanView extends Pane {
         for (Sensor sensor : model.sensors()) {
             double cx = toPixelX(sensor.getX());
             double cy = toPixelY(sensor.getY());
-            Circle dot = new Circle(cx, cy, 6.5, SENSOR_FILL);
-            dot.setStroke(sensor == selected ? SELECTION : SENSOR_FILL.darker());
+            Group node = new Group();
+            if (sensor.getAntennaType() == AntennaType.DIRECTIONAL && sensor.getBeamwidthDeg() < 360) {
+                Arc beam = new Arc(cx, cy, 30, 30, sensor.getOrientationDeg() - sensor.getBeamwidthDeg() / 2,
+                        sensor.getBeamwidthDeg());
+                beam.setType(ArcType.ROUND);
+                beam.setFill(palette.sensor().deriveColor(0, 1, 1, 0.22));
+                beam.setStroke(palette.sensor().deriveColor(0, 1, 1, 0.6));
+                node.getChildren().add(beam);
+            }
+            Circle dot = new Circle(cx, cy, 7, palette.sensor());
+            dot.setStroke(sensor == selected ? palette.selection() : palette.sensor().darker());
             dot.setStrokeWidth(sensor == selected ? 3 : 1.5);
-            Label tag = deviceLabel(sensor.getName(), cx, cy, SENSOR_FILL.darker());
-            Group node = new Group(dot, tag);
-
-            ContextMenu antennaMenu = antennaMenu(sensor);
-            node.setOnMousePressed(e -> {
-                if (e.getButton() == MouseButton.SECONDARY) {
-                    antennaMenu.show(dot, e.getScreenX(), e.getScreenY());
-                } else {
-                    antennaMenu.hide();
-                    selectDevice(sensor);
-                }
-                e.consume();
-            });
-            node.setOnMouseClicked(MouseEvent::consume);
-            Tooltip.install(dot, new Tooltip(sensor.describe()));
+            node.getChildren().addAll(dot, deviceLabel(sensor.getName(), cx, cy));
+            Tooltip.install(dot, new Tooltip(sensor.describe() + "\nDrag to move, right-click to change the antenna"));
+            makeInteractive(node, sensor, antennaMenu(sensor));
             devicesLayer.getChildren().add(node);
         }
     }
 
-    private void selectDevice(Device device) {
-        state.selectedDevice.set(device);
-        state.status.set(String.format("%s selected at (%d, %d).", device.getName(), device.getX(), device.getY()));
+    /** Selection, dragging and (for sensors) the antenna context menu. */
+    private void makeInteractive(Group node, Device device, ContextMenu contextMenu) {
+        node.setCursor(Cursor.HAND);
+        node.getProperties().put("originX", toPixelX(device.getX()));
+        node.getProperties().put("originY", toPixelY(device.getY()));
+
+        node.setOnMousePressed(e -> {
+            e.consume();
+            if (e.getButton() == MouseButton.SECONDARY && contextMenu != null) {
+                contextMenu.show(node, e.getScreenX(), e.getScreenY());
+                return;
+            }
+            if (contextMenu != null) {
+                contextMenu.hide();
+            }
+            if (e.getButton() == MouseButton.PRIMARY) {
+                // Mark the drag first: selecting redraws the devices, which must not rebuild this node.
+                dragged = device;
+                draggedNode = node;
+                state.selectedDevice.set(device);
+                state.status.set(String.format("%s selected at (%d, %d). Drag it to move it.",
+                        device.getName(), device.getX(), device.getY()));
+            }
+        });
+        node.setOnMouseDragged(e -> {
+            e.consume();
+            if (dragged != device) {
+                return;
+            }
+            node.setCursor(Cursor.CLOSED_HAND);
+            Point2D local = sceneToLocal(e.getSceneX(), e.getSceneY());
+            int x = (int) Math.round(toMetersX(local.getX()));
+            int y = (int) Math.round(toMetersY(local.getY()));
+            if (model.moveDevice(device, x, y)) {
+                state.status.set(String.format("Moving %s to (%d, %d)...", device.getName(), device.getX(), device.getY()));
+            }
+        });
+        node.setOnMouseReleased(e -> {
+            e.consume();
+            if (dragged == device) {
+                dragged = null;
+                draggedNode = null;
+                redrawDevices();
+            }
+        });
+        node.setOnMouseClicked(MouseEvent::consume);
     }
 
     private ContextMenu antennaMenu(Sensor sensor) {
@@ -252,6 +337,9 @@ final class PlanView extends Pane {
             item.setSelected(sensor.getAntennaType() == type);
             item.setOnAction(e -> {
                 sensor.setAntennaType(type);
+                if (type == AntennaType.DIRECTIONAL && sensor.getBeamwidthDeg() >= 360) {
+                    sensor.setBeamwidthDeg(90);
+                }
                 model.devicesChanged();
             });
             menu.getItems().add(item);
@@ -259,12 +347,13 @@ final class PlanView extends Pane {
         return menu;
     }
 
-    private static Label deviceLabel(String text, double cx, double cy, Color color) {
+    private Label deviceLabel(String text, double cx, double cy) {
         Label label = new Label(text);
-        label.setFont(Font.font(null, javafx.scene.text.FontWeight.BOLD, 12));
-        label.setTextFill(color);
-        label.setLayoutX(cx + 10);
-        label.setLayoutY(cy - 20);
+        label.setFont(Font.font(null, FontWeight.BOLD, 12));
+        label.setTextFill(palette.deviceLabel());
+        label.getStyleClass().add("device-label");
+        label.setLayoutX(cx + 11);
+        label.setLayoutY(cy - 22);
         label.setMouseTransparent(true);
         return label;
     }
@@ -289,14 +378,14 @@ final class PlanView extends Pane {
         hide.play();
     }
 
-    /** Expanding ring at the hub, used when a ray or wave arrives. */
+    /** Expanding ring at the hub, used when a ray or wave arrives or the hub is relocated. */
     void flashHub() {
         model.hub().ifPresent(this::flashAt);
     }
 
     private void flashAt(Hub hub) {
         Circle flash = new Circle(toPixelX(hub.getX()), toPixelY(hub.getY()), 6, Color.TRANSPARENT);
-        flash.setStroke(HUB_FILL);
+        flash.setStroke(palette.hub());
         flash.setStrokeWidth(3);
         effectsLayer.getChildren().add(flash);
         Timeline animation = new Timeline(

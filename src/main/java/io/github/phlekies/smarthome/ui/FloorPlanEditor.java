@@ -65,6 +65,7 @@ final class FloorPlanEditor {
         view.setOnMouseExited(e -> {
             clearHover();
             probe.hide();
+            state.pointer.set("");
         });
         view.setOnMouseClicked(this::onMouseClicked);
 
@@ -109,8 +110,10 @@ final class FloorPlanEditor {
         if (!PlanCoordinates.isInsidePlan(e.getX(), e.getY())) {
             clearHover();
             probe.hide();
+            state.pointer.set("");
             return;
         }
+        state.pointer.set(String.format(Locale.US, "x %.1f m   y %.1f m", toMetersX(e.getX()), toMetersY(e.getY())));
         hoverX = snap(toMetersX(e.getX()), WIDTH_METERS);
         hoverY = snap(toMetersY(e.getY()), HEIGHT_METERS);
         refreshOverlay();

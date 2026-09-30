@@ -1,68 +1,116 @@
-/* Smart Home Simulator - application stylesheet. */
-
-.root {
-    -fx-font-size: 12px;
-    -accent: #1f6feb;
-    -text-strong: #16212c;
-    -text-muted: #5f6b76;
-    -border: #d8e0e8;
-    -surface: #ffffff;
-    -background: #f4f6f8;
-}
+/*
+ * Smart Home Simulator - application stylesheet.
+ * Built on top of the AtlantaFX Primer themes: every colour comes from the theme's
+ * looked-up variables, so the same rules work in the light and the dark theme.
+ */
 
 /* ---------- Plan area ---------- */
 
-.plan-area {
-    -fx-background-color: -background;
+.plan-area,
+.plan-scroll,
+.plan-scroll > .viewport {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.plan-stack {
+    -fx-padding: 12;
+}
+
+.legend {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 12;
+    -fx-padding: 10 14 12 14;
+    -fx-spacing: 6;
+    -fx-opacity: 0.94;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 12, 0, 0, 4);
+}
+
+.legend-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.legend-tick {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.legend-coverage {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-default;
+    -fx-max-width: 220;
+}
+
+.editor-toolbar {
+    -fx-padding: 6 10 6 10;
+    -fx-spacing: 8;
+}
+
+.tool-bar .button.toolbar-accent {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-background-radius: 6;
+}
+
+.tool-bar .button.toolbar-accent:hover {
+    -fx-background-color: derive(-color-accent-emphasis, 12%);
+}
+
+.tool-bar .button.toolbar-accent .ikonli-font-icon {
+    -fx-icon-color: -color-fg-emphasis;
 }
 
 .status-bar {
-    -fx-padding: 6 12 6 12;
-    -fx-background-color: -surface;
-    -fx-border-color: -border transparent transparent transparent;
-    -fx-spacing: 10;
+    -fx-padding: 5 12 5 12;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default transparent transparent transparent;
 }
 
 .status-bar .label {
-    -fx-text-fill: -text-muted;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.status-pointer {
+    -fx-min-width: 150;
+    -fx-alignment: center-right;
 }
 
 /* ---------- Side panel ---------- */
 
-.side-panel,
-.side-panel > .viewport {
-    -fx-background: -background;
-    -fx-background-color: -background;
-    -fx-border-color: transparent transparent transparent -border;
+.side-panel {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: transparent transparent transparent -color-border-default;
+}
+
+.side-scroll,
+.side-scroll > .viewport {
+    -fx-background-color: -color-bg-default;
 }
 
 .side-content {
-    -fx-padding: 16;
-    -fx-spacing: 14;
-}
-
-.panel-title {
-    -fx-font-size: 20px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -text-strong;
-}
-
-.panel-subtitle {
-    -fx-text-fill: -text-muted;
+    -fx-padding: 12 14 18 14;
 }
 
 .section {
     -fx-padding: 14;
-    -fx-background-color: -surface;
-    -fx-background-radius: 14;
-    -fx-border-color: -border;
-    -fx-border-radius: 14;
+    -fx-spacing: 12;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 12;
 }
 
 .section-title {
-    -fx-font-size: 15px;
+    -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-strong;
+    -fx-text-fill: -color-fg-default;
+}
+
+.subsection-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-accent-fg;
 }
 
 .form-grid,
@@ -72,60 +120,58 @@
 }
 
 .form-label {
-    -fx-font-weight: bold;
-    -fx-text-fill: #31414f;
-}
-
-.input {
-    -fx-background-color: white;
-    -fx-border-color: #cfd7df;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-}
-
-.text-field.input {
-    -fx-padding: 7 10 7 10;
-}
-
-.button-primary {
-    -fx-background-color: -accent;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-    -fx-background-radius: 10;
-    -fx-padding: 9 14 9 14;
-    -fx-cursor: hand;
-}
-
-.button-primary:hover {
-    -fx-background-color: derive(-accent, -12%);
-}
-
-.button-secondary {
-    -fx-background-color: white;
-    -fx-text-fill: #1f2933;
-    -fx-font-weight: bold;
-    -fx-border-color: #cfd7df;
-    -fx-border-radius: 10;
-    -fx-background-radius: 10;
-    -fx-padding: 9 14 9 14;
-    -fx-cursor: hand;
-}
-
-.button-secondary:hover {
-    -fx-background-color: #f1f5f9;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .hint {
-    -fx-text-fill: #425466;
+    -fx-font-size: 11.5px;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .info-box {
     -fx-padding: 10;
     -fx-spacing: 8;
-    -fx-background-color: #f8fafc;
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 8;
+}
+
+.result-box {
+    -fx-padding: 10;
+    -fx-background-color: -color-accent-subtle;
+    -fx-background-radius: 8;
+    -fx-text-fill: -color-fg-default;
+}
+
+.kpi {
+    -fx-padding: 10 12 10 12;
+    -fx-pref-width: 146;
+    -fx-background-color: -color-bg-default;
     -fx-background-radius: 10;
-    -fx-border-color: -border;
+    -fx-border-color: -color-border-muted;
     -fx-border-radius: 10;
+}
+
+.kpi-caption {
+    -fx-font-size: 11px;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.kpi-value {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-accent-fg;
+}
+
+.links-table .table-cell.success {
+    -fx-text-fill: -color-success-fg;
+    -fx-font-weight: bold;
+}
+
+.links-table .table-cell.danger {
+    -fx-text-fill: -color-danger-fg;
+    -fx-font-weight: bold;
 }
 
 /* ---------- Summary window ---------- */
@@ -133,38 +179,37 @@
 .summary-page {
     -fx-padding: 18;
     -fx-spacing: 16;
-    -fx-background-color: -background;
+    -fx-background-color: -color-bg-subtle;
 }
 
 .summary-scroll,
 .summary-scroll > .viewport {
-    -fx-background: -background;
-    -fx-background-color: -background;
+    -fx-background-color: -color-bg-subtle;
 }
 
 .summary-title {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-strong;
+    -fx-text-fill: -color-fg-default;
 }
 
 .card {
     -fx-padding: 14;
     -fx-spacing: 12;
-    -fx-background-color: -surface;
-    -fx-background-radius: 14;
-    -fx-border-color: -border;
-    -fx-border-radius: 14;
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 12;
 }
 
 .card-title {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-strong;
+    -fx-text-fill: -color-fg-default;
 }
 
 .card-subtitle {
-    -fx-text-fill: -text-muted;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .summary-grid {
@@ -173,25 +218,26 @@
 }
 
 .summary-value {
-    -fx-text-fill: #102a43;
+    -fx-text-fill: -color-fg-default;
 }
 
 .metric-tile {
     -fx-padding: 12;
     -fx-spacing: 6;
     -fx-pref-width: 150;
-    -fx-background-color: #f8fafc;
-    -fx-background-radius: 12;
-    -fx-border-color: -border;
-    -fx-border-radius: 12;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 10;
 }
 
 .metric-label {
     -fx-font-size: 11px;
-    -fx-text-fill: -text-muted;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .metric-value {
+    -fx-text-fill: -color-accent-fg;
     -fx-font-size: 18px;
     -fx-font-weight: bold;
 }
@@ -199,7 +245,7 @@
 .table-header {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
-    -fx-text-fill: -text-muted;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .badge {
@@ -207,13 +253,13 @@
     -fx-font-weight: bold;
     -fx-text-fill: white;
     -fx-background-radius: 999;
-    -fx-padding: 4 8 4 8;
+    -fx-padding: 3 8 3 8;
 }
 
 .badge-ok {
-    -fx-background-color: #0f766e;
+    -fx-background-color: -color-success-emphasis;
 }
 
 .badge-fail {
-    -fx-background-color: #b91c1c;
+    -fx-background-color: -color-danger-emphasis;
 }

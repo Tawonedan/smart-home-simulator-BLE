@@ -3,6 +3,7 @@ package io.github.phlekies.smarthome.ui;
 import java.util.List;
 
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -14,7 +15,7 @@ import io.github.phlekies.smarthome.model.Hub;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.util.Format;
 
-/** Side panel section to add, select and configure sensors and the hub. */
+/** Side panel tab to add devices and edit the selected sensor or hub. */
 final class DevicesSection {
 
     private final SimulatorModel model;
@@ -23,14 +24,23 @@ final class DevicesSection {
     private final TextField xField = Ui.textField("5");
     private final TextField yField = Ui.textField("5");
     private final ComboBox<Sensor> sensorCombo = Ui.comboBox(List.of(), null);
+
+    private final Label selectionTitle = new Label();
+    private final TextField nameField = Ui.textField("");
     private final ComboBox<AntennaType> antennaCombo = Ui.comboBox(List.of(AntennaType.values()),
             AntennaType.OMNIDIRECTIONAL);
-    private final TextField txPowerField = Ui.textField(Format.number(Sensor.DEFAULT_TX_POWER_DBM, 1));
-    private final TextField gainField = Ui.textField("0.0");
-    private final TextField orientationField = Ui.textField("0.0");
-    private final TextField beamwidthField = Ui.textField("90.0");
-    private final TextField sharpnessField = Ui.textField("1.80");
-    private final TextField polarizationField = Ui.textField("0.0");
+    private final TextField txPowerField = Ui.textField("");
+    private final TextField gainField = Ui.textField("");
+    private final TextField orientationField = Ui.textField("");
+    private final TextField beamwidthField = Ui.textField("");
+    private final TextField sharpnessField = Ui.textField("");
+    private final TextField polarizationField = Ui.textField("");
+    private final TextField hubGainField = Ui.textField("");
+    private final TextField hubPolarizationField = Ui.textField("");
+
+    private final VBox sensorEditor = new VBox(12);
+    private final VBox hubEditor = new VBox(12);
+    private final Label noSelection = Ui.hint("Select a sensor or the hub on the plan (or in the list above) to edit it.");
     /** Guards against feedback loops while controls are refreshed programmatically. */
     private boolean syncing;
 
@@ -41,31 +51,47 @@ final class DevicesSection {
 
     VBox build() {
         sensorCombo.setPromptText("Select a sensor");
-        refreshSensorList();
-
-        GridPane form = Ui.formGrid();
-        Ui.addRow(form, "Position (m)", Ui.pair(xField, yField));
-        Ui.addRow(form, "Sensor", sensorCombo);
-        Ui.addRow(form, "Antenna", antennaCombo);
-        Ui.addRow(form, "Tx power (dBm)", txPowerField);
-        Ui.addRow(form, "Tx gain (dB)", gainField);
-        Ui.addRow(form, "Orientation (°)", orientationField);
-        Ui.addRow(form, "Beamwidth (°)", beamwidthField);
-        Ui.addRow(form, "Pattern sharpness", sharpnessField);
-        Ui.addRow(form, "Polarization (°)", polarizationField);
-
-        GridPane buttons = Ui.buttonGrid();
-        buttons.add(Ui.primaryButton("Add sensor", e -> addSensorAtFields()), 0, 0);
-        buttons.add(Ui.secondaryButton("Add hub", e -> placeHubAtFields()), 1, 0);
-        buttons.add(Ui.secondaryButton("Place sensor on plan", e -> state.tool.set(EditorTool.SENSOR)), 0, 1);
-        buttons.add(Ui.secondaryButton("Place hub on plan", e -> state.tool.set(EditorTool.HUB)), 1, 1);
-        buttons.add(Ui.secondaryButton("Remove selected", e -> removeSelected()), 0, 2, 2, 1);
-
         sensorCombo.valueProperty().addListener((obs, old, sensor) -> {
             if (!syncing && sensor != null) {
                 state.selectedDevice.set(sensor);
             }
         });
+
+        GridPane addForm = Ui.formGrid();
+        Ui.addRow(addForm, "Position x, y (m)", Ui.pair(xField, yField));
+        GridPane addButtons = Ui.buttonGrid();
+        addButtons.add(Ui.primaryButton("Add sensor", e -> addSensorAtFields()), 0, 0);
+        addButtons.add(Ui.secondaryButton("Place hub", e -> placeHubAtFields()), 1, 0);
+        VBox addSection = Ui.section("Add a device", addForm, addButtons,
+                Ui.hint("Or use the Sensor and Hub tools of the toolbar and click on the plan. Drag devices to move them."));
+
+        GridPane sensorForm = Ui.formGrid();
+        Ui.addRow(sensorForm, "Antenna", antennaCombo);
+        Ui.addRow(sensorForm, "Tx power (dBm)", txPowerField);
+        Ui.addRow(sensorForm, "Tx gain (dB)", gainField);
+        Ui.addRow(sensorForm, "Orientation (°)", orientationField);
+        Ui.addRow(sensorForm, "Beamwidth (°)", beamwidthField);
+        Ui.addRow(sensorForm, "Pattern sharpness", sharpnessField);
+        Ui.addRow(sensorForm, "Polarization (°)", polarizationField);
+        sensorEditor.getChildren().add(sensorForm);
+
+        GridPane hubForm = Ui.formGrid();
+        Ui.addRow(hubForm, "Rx gain (dB)", hubGainField);
+        Ui.addRow(hubForm, "Polarization (°)", hubPolarizationField);
+        hubEditor.getChildren().add(hubForm);
+
+        GridPane nameForm = Ui.formGrid();
+        Ui.addRow(nameForm, "Sensor", sensorCombo);
+        Ui.addRow(nameForm, "Name", nameField);
+
+        GridPane selectionButtons = Ui.buttonGrid();
+        selectionButtons.add(Ui.primaryButton("Apply", e -> applyChanges()), 0, 0);
+        selectionButtons.add(Ui.secondaryButton("Remove", e -> removeSelected()), 1, 0);
+
+        selectionTitle.getStyleClass().add("subsection-title");
+        VBox selectionSection = Ui.section("Selected device", nameForm, selectionTitle, noSelection, sensorEditor,
+                hubEditor, selectionButtons);
+
         state.selectedDevice.addListener((obs, old, device) -> showDevice(device));
         model.addListener(change -> {
             if (change == SimulatorModel.Change.DEVICES) {
@@ -73,13 +99,10 @@ final class DevicesSection {
                 showDevice(state.selectedDevice.get());
             }
         });
+        refreshSensorList();
+        showDevice(state.selectedDevice.get());
 
-        return Ui.section("Devices",
-                form,
-                Ui.primaryButton("Apply antenna settings", e -> applyAntenna()),
-                buttons,
-                Ui.hint("Type coordinates in metres, or pick a placement tool and click on the plan. "
-                        + "Right-click a sensor to switch its antenna type."));
+        return new VBox(14, selectionSection, addSection);
     }
 
     private void refreshSensorList() {
@@ -95,12 +118,24 @@ final class DevicesSection {
     }
 
     private void showDevice(Device device) {
-        if (device == null) {
-            return;
-        }
-        xField.setText(Integer.toString(device.getX()));
-        yField.setText(Integer.toString(device.getY()));
         syncing = true;
+        boolean isSensor = device instanceof Sensor;
+        boolean isHub = device instanceof Hub;
+        setShown(sensorEditor, isSensor);
+        setShown(hubEditor, isHub);
+        setShown(noSelection, device == null);
+        setShown(selectionTitle, device != null);
+        nameField.setDisable(device == null);
+
+        if (device != null) {
+            selectionTitle.setText((isHub ? "Hub" : "Sensor " + device.getId()) + " at (" + device.getX() + ", "
+                    + device.getY() + ") m");
+            nameField.setText(device.getName());
+            xField.setText(Integer.toString(device.getX()));
+            yField.setText(Integer.toString(device.getY()));
+        } else {
+            nameField.setText("");
+        }
         if (device instanceof Sensor sensor) {
             sensorCombo.getSelectionModel().select(sensor);
             antennaCombo.getSelectionModel().select(sensor.getAntennaType());
@@ -110,10 +145,19 @@ final class DevicesSection {
             beamwidthField.setText(Format.number(sensor.getBeamwidthDeg(), 1));
             sharpnessField.setText(Format.number(sensor.getPatternSharpness(), 2));
             polarizationField.setText(Format.number(sensor.getPolarizationDeg(), 1));
-        } else if (device instanceof Hub) {
+        } else {
             sensorCombo.getSelectionModel().clearSelection();
         }
+        if (device instanceof Hub hub) {
+            hubGainField.setText(Format.number(hub.getReceiverGainDb(), 1));
+            hubPolarizationField.setText(Format.number(hub.getPolarizationDeg(), 1));
+        }
         syncing = false;
+    }
+
+    private static void setShown(javafx.scene.Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
     }
 
     private void addSensorAtFields() {
@@ -153,19 +197,28 @@ final class DevicesSection {
         }
     }
 
-    private void applyAntenna() {
-        if (!(state.selectedDevice.get() instanceof Sensor sensor)) {
-            state.status.set("Select a sensor to configure its antenna.");
+    private void applyChanges() {
+        Device device = state.selectedDevice.get();
+        if (device == null) {
+            state.status.set("Select a sensor or the hub first.");
             return;
         }
-        sensor.setAntennaType(antennaCombo.getValue());
-        sensor.setTxPowerDbm(Ui.parseDouble(txPowerField.getText(), sensor.getTxPowerDbm()));
-        sensor.setTxGainDb(Ui.parseDouble(gainField.getText(), sensor.getTxGainDb()));
-        sensor.setOrientationDeg(Ui.parseDouble(orientationField.getText(), sensor.getOrientationDeg()));
-        sensor.setBeamwidthDeg(Ui.parseDouble(beamwidthField.getText(), sensor.getBeamwidthDeg()));
-        sensor.setPatternSharpness(Ui.parseDouble(sharpnessField.getText(), sensor.getPatternSharpness()));
-        sensor.setPolarizationDeg(Ui.parseDouble(polarizationField.getText(), sensor.getPolarizationDeg()));
+        if (!nameField.getText().isBlank()) {
+            device.setName(nameField.getText().strip());
+        }
+        if (device instanceof Sensor sensor) {
+            sensor.setAntennaType(antennaCombo.getValue());
+            sensor.setTxPowerDbm(Ui.parseDouble(txPowerField.getText(), sensor.getTxPowerDbm()));
+            sensor.setTxGainDb(Ui.parseDouble(gainField.getText(), sensor.getTxGainDb()));
+            sensor.setOrientationDeg(Ui.parseDouble(orientationField.getText(), sensor.getOrientationDeg()));
+            sensor.setBeamwidthDeg(Ui.parseDouble(beamwidthField.getText(), sensor.getBeamwidthDeg()));
+            sensor.setPatternSharpness(Ui.parseDouble(sharpnessField.getText(), sensor.getPatternSharpness()));
+            sensor.setPolarizationDeg(Ui.parseDouble(polarizationField.getText(), sensor.getPolarizationDeg()));
+        } else if (device instanceof Hub hub) {
+            hub.setReceiverGainDb(Ui.parseDouble(hubGainField.getText(), hub.getReceiverGainDb()));
+            hub.setPolarizationDeg(Ui.parseDouble(hubPolarizationField.getText(), hub.getPolarizationDeg()));
+        }
         model.devicesChanged();
-        state.status.set("Antenna settings applied to " + sensor.getName() + ".");
+        state.status.set("Changes applied to " + device.getName() + ".");
     }
 }

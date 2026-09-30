@@ -195,6 +195,88 @@ class SimulatorModelTest {
     }
 
     @Nested
+    @DisplayName("Moving devices")
+    class MovingDevices {
+
+        @Test
+        void movingADeviceIsBroadcastOnlyWhenItChangesPosition() {
+            Sensor sensor = model.addSensor(5, 5);
+            changes.clear();
+            assertFalse(model.moveDevice(sensor, 5, 5));
+            assertTrue(model.moveDevice(sensor, 7, 9));
+            assertEquals(List.of(Change.DEVICES), changes);
+            assertEquals(7, sensor.getX());
+        }
+
+        @Test
+        void movedDevicesStayInsideThePlan() {
+            Hub hub = model.placeHub(5, 5);
+            model.moveDevice(hub, 500, -3);
+            assertEquals(SimulatorModel.PLAN_WIDTH_METERS, hub.getX());
+            assertEquals(0, hub.getY());
+        }
+
+        @Test
+        void linkSummariesFollowTheHub() {
+            Sensor sensor = model.addSensor(5, 5);
+            assertTrue(model.linkSummaries().isEmpty());
+            Hub hub = model.placeHub(6, 5);
+            double near = model.linkSummaries().getFirst().receivedPowerDbm();
+            model.moveDevice(hub, 30, 25);
+            double far = model.linkSummaries().getFirst().receivedPowerDbm();
+            assertTrue(far < near, "moving the hub away must weaken the link");
+            assertEquals(sensor, model.linkSummaries().getFirst().sensor());
+        }
+    }
+
+    @Nested
+    @DisplayName("Whole-project state")
+    class WholeProject {
+
+        @Test
+        void loadingAProjectReplacesEverythingAndNotifiesEveryView() {
+            model.addWalls(List.of(new Wall(0, 0, 5, 0, Materials.WOOD, 5)));
+            changes.clear();
+
+            model.load(DemoScenario.warehouse());
+
+            assertEquals(5, model.sensors().size());
+            assertEquals(6, model.hub().orElseThrow().getX());
+            assertEquals(FloorPlanTemplate.WAREHOUSE_WITH_AISLES.walls().size(), model.walls().size());
+            assertEquals("Warehouse with aisles", model.scenarioName());
+            assertFalse(model.canUndo());
+            assertTrue(changes.containsAll(List.of(Change.WALLS, Change.DEVICES, Change.RADIO, Change.SETTINGS)));
+        }
+
+        @Test
+        void stateIsADeepCopy() {
+            model.load(DemoScenario.smartApartment());
+            ProjectState saved = model.state();
+            model.sensors().getFirst().moveTo(1, 1);
+            model.clearWalls();
+
+            assertEquals(7, saved.sensors().getFirst().getX());
+            assertFalse(saved.environment().getWalls().isEmpty());
+        }
+
+        @Test
+        void aCustomPlanIsSavedWithoutTemplate() {
+            model.addRoom(40, 30, 45, 35, Materials.DRYWALL, 8);
+            assertEquals(null, model.state().template());
+        }
+
+        @Test
+        void theFootprintBoundsTheWalls() {
+            model.load(DemoScenario.smartApartment());
+            var footprint = model.footprint();
+            assertEquals(1.3, footprint.minX(), 1e-9);
+            assertEquals(41.6, footprint.maxX(), 1e-9);
+            model.clearWalls();
+            assertEquals(SimulatorModel.PLAN_WIDTH_METERS, model.footprint().maxX());
+        }
+    }
+
+    @Nested
     @DisplayName("Snapshots")
     class Snapshots {
 

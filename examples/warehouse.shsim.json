@@ -1,0 +1,249 @@
+{
+  "format" : "smart-home-simulator",
+  "version" : 1,
+  "template" : "WAREHOUSE_WITH_AISLES",
+  "environment" : {
+    "frequencyMHz" : 2400.0,
+    "bandwidthHz" : 2.0E7,
+    "noiseFigureDb" : 7.0,
+    "extraLossDbPerMeter" : 0.0,
+    "systemGainDb" : 0.0
+  },
+  "settings" : {
+    "propagationMode" : "RAYS",
+    "heatmapMetric" : "POWER_DBM",
+    "fading" : "NONE",
+    "diffraction" : true,
+    "scattering" : true,
+    "parallelComputation" : true,
+    "pathLossExponent" : 2.1,
+    "ricianKFactorDb" : 6.0,
+    "cullingThresholdDbm" : -115.0,
+    "receiverSensitivityDbm" : -92.0,
+    "maxReflectionPaths" : 2,
+    "maxDiffractionPaths" : 2,
+    "maxScatteringPaths" : 1
+  },
+  "walls" : [ {
+    "x1" : 1.3,
+    "y1" : 1.3,
+    "x2" : 44.2,
+    "y2" : 1.3,
+    "material" : "Concrete",
+    "thicknessCm" : 20.0
+  }, {
+    "x1" : 44.2,
+    "y1" : 1.3,
+    "x2" : 44.2,
+    "y2" : 37.7,
+    "material" : "Concrete",
+    "thicknessCm" : 20.0
+  }, {
+    "x1" : 44.2,
+    "y1" : 37.7,
+    "x2" : 1.3,
+    "y2" : 37.7,
+    "material" : "Concrete",
+    "thicknessCm" : 20.0
+  }, {
+    "x1" : 1.3,
+    "y1" : 37.7,
+    "x2" : 1.3,
+    "y2" : 1.3,
+    "material" : "Concrete",
+    "thicknessCm" : 20.0
+  }, {
+    "x1" : 2.6,
+    "y1" : 2.6,
+    "x2" : 11.700000000000001,
+    "y2" : 2.6,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 11.700000000000001,
+    "y1" : 2.6,
+    "x2" : 11.700000000000001,
+    "y2" : 10.4,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 11.700000000000001,
+    "y1" : 10.4,
+    "x2" : 2.6,
+    "y2" : 10.4,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 2.6,
+    "y1" : 10.4,
+    "x2" : 2.6,
+    "y2" : 2.6,
+    "material" : "Drywall",
+    "thicknessCm" : 8.0
+  }, {
+    "x1" : 13.0,
+    "y1" : 6.5,
+    "x2" : 13.0,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 13.0,
+    "y1" : 22.1,
+    "x2" : 13.0,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 18.2,
+    "y1" : 6.5,
+    "x2" : 18.2,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 18.2,
+    "y1" : 22.1,
+    "x2" : 18.2,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 23.400000000000002,
+    "y1" : 6.5,
+    "x2" : 23.400000000000002,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 23.400000000000002,
+    "y1" : 22.1,
+    "x2" : 23.400000000000002,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 28.6,
+    "y1" : 6.5,
+    "x2" : 28.6,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 28.6,
+    "y1" : 22.1,
+    "x2" : 28.6,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 33.800000000000004,
+    "y1" : 6.5,
+    "x2" : 33.800000000000004,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 33.800000000000004,
+    "y1" : 22.1,
+    "x2" : 33.800000000000004,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 39.0,
+    "y1" : 6.5,
+    "x2" : 39.0,
+    "y2" : 16.900000000000002,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 39.0,
+    "y1" : 22.1,
+    "x2" : 39.0,
+    "y2" : 33.800000000000004,
+    "material" : "Metal door",
+    "thicknessCm" : 4.0
+  }, {
+    "x1" : 11.700000000000001,
+    "y1" : 13.0,
+    "x2" : 44.2,
+    "y2" : 13.0,
+    "material" : "Wood",
+    "thicknessCm" : 5.0
+  } ],
+  "sensors" : [ {
+    "id" : "S1",
+    "name" : "Temperature logger 1",
+    "x" : 15,
+    "y" : 12,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S2",
+    "name" : "Temperature logger 2",
+    "x" : 27,
+    "y" : 28,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S3",
+    "name" : "Forklift beacon",
+    "x" : 35,
+    "y" : 20,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S4",
+    "name" : "Dock door sensor",
+    "x" : 43,
+    "y" : 30,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  }, {
+    "id" : "S5",
+    "name" : "Shelf weight sensor",
+    "x" : 21,
+    "y" : 8,
+    "txPowerDbm" : 0.0,
+    "txGainDb" : 0.0,
+    "antenna" : "OMNIDIRECTIONAL",
+    "orientationDeg" : 0.0,
+    "beamwidthDeg" : 360.0,
+    "patternSharpness" : 1.8,
+    "sideLobeAttenuationDb" : 18.0,
+    "polarizationDeg" : 0.0
+  } ],
+  "hub" : {
+    "id" : "H1",
+    "name" : "Hub",
+    "x" : 6,
+    "y" : 6,
+    "receiverGainDb" : 0.0,
+    "polarizationDeg" : 0.0
+  }
+}

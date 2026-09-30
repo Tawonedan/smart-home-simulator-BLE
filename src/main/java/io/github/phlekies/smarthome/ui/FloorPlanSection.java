@@ -1,6 +1,5 @@
 package io.github.phlekies.smarthome.ui;
 
-import java.util.List;
 import java.util.Locale;
 
 import javafx.scene.control.Button;
@@ -35,9 +34,6 @@ final class FloorPlanSection {
     }
 
     VBox build() {
-        ComboBox<EditorTool> toolCombo = Ui.comboBox(List.of(EditorTool.values()), state.tool.get());
-        toolCombo.valueProperty().bindBidirectional(state.tool);
-
         materialCombo.valueProperty().bindBidirectional(state.drawMaterial);
         thicknessField.textProperty().addListener((obs, old, text) ->
                 state.drawThicknessCm.set(Math.max(1.0, Ui.parseDouble(text, state.drawThicknessCm.get()))));
@@ -45,7 +41,6 @@ final class FloorPlanSection {
         snap.selectedProperty().bindBidirectional(state.snapToGrid);
 
         GridPane form = Ui.formGrid();
-        Ui.addRow(form, "Tool", toolCombo);
         Ui.addRow(form, "Material", materialCombo);
         Ui.addRow(form, "Thickness (cm)", thicknessField);
         Ui.addRow(form, "Grid", snap);
@@ -99,7 +94,8 @@ final class FloorPlanSection {
         undo.setDisable(!model.canUndo());
         redo.setDisable(!model.canRedo());
 
-        return Ui.section("Floor plan editor", form, buttons, quickRoom, info);
+        return Ui.section("Walls", Ui.hint("Pick Draw wall, Draw room or Erase in the toolbar. New walls use this material."),
+                form, info, buttons, quickRoom);
     }
 
     private void showSelection() {

@@ -5,9 +5,9 @@ import io.github.phlekies.smarthome.physics.RadioMath;
 /** Tunable parameters of the propagation engine. Mutable; engines work on a {@link #copy()}. */
 public class SimulationSettings {
 
-    private PropagationMode propagationMode = PropagationMode.WAVES;
+    private PropagationMode propagationMode = PropagationMode.RAYS;
     private MapMetric mapMetric = MapMetric.POWER_DBM;
-    private FadingModel fadingModel = FadingModel.RICIAN;
+    private FadingModel fadingModel = FadingModel.NONE;
     private boolean diffractionEnabled = true;
     private boolean scatteringEnabled = true;
     private boolean parallelComputation = true;
@@ -26,6 +26,15 @@ public class SimulationSettings {
     }
 
     public SimulationSettings(SimulationSettings other) {
+        copyFrom(other);
+    }
+
+    public SimulationSettings copy() {
+        return new SimulationSettings(this);
+    }
+
+    /** Overwrites every parameter with another instance's values. */
+    public final void copyFrom(SimulationSettings other) {
         this.propagationMode = other.propagationMode;
         this.mapMetric = other.mapMetric;
         this.fadingModel = other.fadingModel;
@@ -43,16 +52,12 @@ public class SimulationSettings {
         this.maxScatteringPaths = other.maxScatteringPaths;
     }
 
-    public SimulationSettings copy() {
-        return new SimulationSettings(this);
-    }
-
     public PropagationMode getPropagationMode() {
         return propagationMode;
     }
 
     public void setPropagationMode(PropagationMode propagationMode) {
-        this.propagationMode = (propagationMode == null) ? PropagationMode.WAVES : propagationMode;
+        this.propagationMode = (propagationMode == null) ? PropagationMode.RAYS : propagationMode;
     }
 
     public MapMetric getMapMetric() {
@@ -68,7 +73,7 @@ public class SimulationSettings {
     }
 
     public void setFadingModel(FadingModel fadingModel) {
-        this.fadingModel = (fadingModel == null) ? FadingModel.RICIAN : fadingModel;
+        this.fadingModel = (fadingModel == null) ? FadingModel.NONE : fadingModel;
     }
 
     public boolean isDiffractionEnabled() {

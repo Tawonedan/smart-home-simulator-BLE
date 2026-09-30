@@ -2,6 +2,8 @@ package io.github.phlekies.smarthome.ui;
 
 import java.util.Collection;
 
+import atlantafx.base.theme.Styles;
+
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -70,16 +72,13 @@ final class Ui {
     }
 
     static Button primaryButton(String text, EventHandler<ActionEvent> onAction) {
-        return button(text, "button-primary", onAction);
+        Button button = secondaryButton(text, onAction);
+        button.getStyleClass().add(Styles.ACCENT);
+        return button;
     }
 
     static Button secondaryButton(String text, EventHandler<ActionEvent> onAction) {
-        return button(text, "button-secondary", onAction);
-    }
-
-    private static Button button(String text, String styleClass, EventHandler<ActionEvent> onAction) {
         Button button = new Button(text);
-        button.getStyleClass().add(styleClass);
         button.setMaxWidth(Double.MAX_VALUE);
         button.setOnAction(onAction);
         return button;

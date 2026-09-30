@@ -9,12 +9,14 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import io.github.phlekies.smarthome.model.Device;
 import io.github.phlekies.smarthome.model.Environment;
 import io.github.phlekies.smarthome.model.Hub;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.Wall;
 import io.github.phlekies.smarthome.model.material.Material;
 import io.github.phlekies.smarthome.model.template.FloorPlanTemplate;
+import io.github.phlekies.smarthome.simulation.Area;
 import io.github.phlekies.smarthome.simulation.CellResult;
 import io.github.phlekies.smarthome.simulation.PropagationEngine;
 import io.github.phlekies.smarthome.simulation.SimulationSettings;
@@ -267,6 +269,18 @@ public final class SimulatorModel {
         }
     }
 
+    /** Moves a sensor or the hub, clamped to the plan. Returns false if the position did not change. */
+    public boolean moveDevice(Device device, int x, int y) {
+        int clampedX = clampX(x);
+        int clampedY = clampY(y);
+        if (device.getX() == clampedX && device.getY() == clampedY) {
+            return false;
+        }
+        device.moveTo(clampedX, clampedY);
+        fire(Change.DEVICES);
+        return true;
+    }
+
     /** Must be called after mutating a sensor or the hub directly. */
     public void devicesChanged() {
         fire(Change.DEVICES);
@@ -318,6 +332,40 @@ public final class SimulatorModel {
     }
 
     // ---------------------------------------------------------------------------------------
+    // Whole-project state
+    // ---------------------------------------------------------------------------------------
+
+    /** Deep copy of the current project, for saving it. */
+    public ProjectState state() {
+        return new ProjectState(
+                matchesActiveTemplate() ? activeTemplate : null,
+                environment.copy(),
+                settings.copy(),
+                sensors.stream().map(Sensor::copy).toList(),
+                hub == null ? null : hub.copy());
+    }
+
+    /** Replaces the whole project (plan, devices, radio and engine settings). Clears the undo history. */
+    public void load(ProjectState state) {
+        activeTemplate = state.template();
+        environment.copyFrom(state.environment());
+        settings.copyFrom(state.settings());
+        sensors.clear();
+        state.sensors().forEach(sensor -> sensors.add(sensor.copy()));
+        hub = (state.hub() == null) ? null : state.hub().copy();
+        undoStack.clear();
+        redoStack.clear();
+        for (Change change : Change.values()) {
+            fire(change);
+        }
+    }
+
+    /** The building footprint (bounding box of the walls), or the whole plan when it is empty. */
+    public Area footprint() {
+        return Area.footprintOf(walls(), new Area(0, 0, PLAN_WIDTH_METERS, PLAN_HEIGHT_METERS));
+    }
+
+    // ---------------------------------------------------------------------------------------
     // Snapshots and link queries
     // ---------------------------------------------------------------------------------------
 
@@ -358,6 +406,16 @@ public final class SimulatorModel {
         }
         return Optional.of(PropagationEngine.computeCell(environment, List.of(sensor), hub.getX(), hub.getY(),
                 receiverSettings()));
+    }
+
+    /** Link of every sensor to the hub, in sensor order (empty without a hub). */
+    public List<LinkSummary> linkSummaries() {
+        if (hub == null) {
+            return List.of();
+        }
+        return sensors.stream()
+                .map(sensor -> new LinkSummary(sensor, sensor.distanceTo(hub), sensorLink(sensor).orElseThrow()))
+                .toList();
     }
 
     /** Link metrics at an arbitrary point, as seen by a receiver with the hub's antenna. */
