@@ -17,6 +17,7 @@ public class Wall {
     private Material material;
     private double thicknessCm;
 
+    /** Creates a wall from (x1, y1) to (x2, y2); a null material means drywall. */
     public Wall(double x1, double y1, double x2, double y2, Material material, double thicknessCm) {
         this.x1 = x1;
         this.y1 = y1;
@@ -26,14 +27,17 @@ public class Wall {
         this.thicknessCm = Math.max(0.0, thicknessCm);
     }
 
+    /** Independent copy with the same geometry, material and thickness. */
     public Wall copy() {
         return new Wall(x1, y1, x2, y2, material, thicknessCm);
     }
 
+    /** Copy shifted by an offset in metres. */
     public Wall translated(double dx, double dy) {
         return new Wall(x1 + dx, y1 + dy, x2 + dx, y2 + dy, material, thicknessCm);
     }
 
+    /** Copy with both end points scaled from the origin. */
     public Wall scaled(double factor) {
         return new Wall(x1 * factor, y1 * factor, x2 * factor, y2 * factor, material, thicknessCm);
     }
@@ -54,6 +58,7 @@ public class Wall {
         return y2;
     }
 
+    /** Length of the segment in metres. */
     public double length() {
         return Math.hypot(x2 - x1, y2 - y1);
     }

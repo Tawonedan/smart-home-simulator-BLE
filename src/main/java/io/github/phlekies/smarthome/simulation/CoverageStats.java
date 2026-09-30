@@ -6,8 +6,13 @@ import java.util.Arrays;
  * Summary of a heatmap over a region (normally the building footprint). "Signal" is the power of
  * the strongest sensor at each point, i.e. what a receiver placed there would lock on to.
  *
- * @param coveredFraction share of the cells where the signal is at or above the receiver sensitivity
- * @param signalP10Dbm    signal level exceeded in 90 % of the area (10th percentile)
+ * @param cellCount        number of one-metre cells analysed
+ * @param coveredFraction  share of the cells where the signal is at or above the receiver sensitivity
+ * @param medianSignalDbm  median signal level
+ * @param signalP10Dbm     signal level exceeded in 90 % of the area (10th percentile)
+ * @param medianSinrDb     median SINR
+ * @param meanCapacityMbps mean Shannon capacity
+ * @param sensitivityDbm   receiver sensitivity used as the coverage threshold
  */
 public record CoverageStats(
         int cellCount,

@@ -47,18 +47,22 @@ public final class RadioMath {
         return SPEED_OF_LIGHT_MPS / (freqMHz * 1e6);
     }
 
+    /** Converts dBm to milliwatts. */
     public static double dbmToMilliwatt(double dbm) {
         return Math.pow(10.0, dbm / 10.0);
     }
 
+    /** Converts milliwatts to dBm (clamped to avoid log of zero). */
     public static double milliwattToDbm(double milliwatt) {
         return 10.0 * Math.log10(Math.max(milliwatt, MIN_LINEAR));
     }
 
+    /** Converts a power ratio from dB to linear. */
     public static double dbToLinear(double db) {
         return Math.pow(10.0, db / 10.0);
     }
 
+    /** Converts a linear power ratio to dB (clamped to avoid log of zero). */
     public static double linearToDb(double ratio) {
         return 10.0 * Math.log10(Math.max(ratio, MIN_LINEAR));
     }

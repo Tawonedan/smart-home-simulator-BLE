@@ -31,8 +31,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build, test and measure coverage
-        run: ./gradlew build --no-daemon
+      - name: Build, test, measure coverage and check the Javadoc
+        run: ./gradlew build javadoc --no-daemon
 
       - name: Upload test and coverage reports
         if: always()

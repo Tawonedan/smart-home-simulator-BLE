@@ -29,14 +29,20 @@ public final class HubPlacementOptimizer {
     /**
      * Score of one candidate hub position.
      *
+     * @param x                  candidate x position in metres
+     * @param y                  candidate y position in metres
      * @param unreachableSensors sensors whose signal does not reach the candidate at all
      * @param worstMarginDb      smallest link margin among the sensors that do reach it
+     * @param meanMarginDb       mean link margin among the sensors that do reach it
+     * @param weakestSensorId    an unreachable sensor if any, otherwise the one with the worst margin
      */
     public record Candidate(int x, int y, int unreachableSensors, double worstMarginDb, double meanMarginDb,
                             String weakestSensorId) {
     }
 
     /**
+     * Outcome of a search.
+     *
      * @param best       the recommended hub position
      * @param candidates every evaluated position, best first
      */
@@ -55,6 +61,7 @@ public final class HubPlacementOptimizer {
     private HubPlacementOptimizer() {
     }
 
+    /** Same as the monitored overload, without progress reporting or cancellation. */
     public static Result optimize(Environment env, List<Sensor> sensors, SimulationSettings settings, Area area) {
         return optimize(env, sensors, settings, area, ComputationMonitor.NONE);
     }

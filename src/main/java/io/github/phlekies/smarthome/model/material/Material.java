@@ -23,6 +23,7 @@ public final class Material {
     /** Equivalent surface roughness: how much energy is scattered diffusely. */
     private final double roughnessDb;
 
+    /** Creates a material from its measured losses and reflection behaviour. */
     public Material(String name, double lossDbAt24GHz, double lossDbAt5GHz, double lossDbPerCm,
                     double reflectionBiasDb, double roughnessDb) {
         this.name = Objects.requireNonNull(name, "name");
@@ -77,6 +78,7 @@ public final class Material {
         return name;
     }
 
+    /** Name with the penetration losses of both bands. */
     public String describe() {
         return String.format(Locale.US, "%s (%.1f dB @ 2.4 GHz, %.1f dB @ 5 GHz)", name, lossDbAt24GHz, lossDbAt5GHz);
     }

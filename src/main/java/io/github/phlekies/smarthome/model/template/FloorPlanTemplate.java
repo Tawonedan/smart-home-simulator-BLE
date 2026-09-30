@@ -186,14 +186,17 @@ public enum FloorPlanTemplate {
         this.layout = layout;
     }
 
+    /** The template loaded in a new project. */
     public static FloorPlanTemplate defaultTemplate() {
         return TWO_BEDROOM_APARTMENT;
     }
 
+    /** Name shown in the UI. */
     public String displayName() {
         return displayName;
     }
 
+    /** One-sentence description of the layout. */
     public String description() {
         return description;
     }

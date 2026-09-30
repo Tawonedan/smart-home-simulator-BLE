@@ -16,6 +16,7 @@ public final class Launcher {
     private Launcher() {
     }
 
+    /** Starts the JavaFX application. */
     public static void main(String[] args) {
         Application.launch(SimulatorApp.class, args);
     }

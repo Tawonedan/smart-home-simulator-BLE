@@ -21,6 +21,7 @@ public final class Materials {
     private Materials() {
     }
 
+    /** Every built-in material, in display order. */
     public static List<Material> all() {
         return ALL;
     }

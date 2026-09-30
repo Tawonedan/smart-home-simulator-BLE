@@ -39,9 +39,13 @@ public final class SimulatorModel {
 
     /** What part of the state changed. */
     public enum Change {
+        /** The floor plan changed. */
         WALLS,
+        /** Sensors or the hub were added, removed, moved or reconfigured. */
         DEVICES,
+        /** Radio environment parameters changed (band, bandwidth, noise figure...). */
         RADIO,
+        /** Engine settings changed. */
         SETTINGS,
         /** Only how results are displayed changed (e.g. the heatmap metric); no recomputation needed. */
         DISPLAY
@@ -56,14 +60,17 @@ public final class SimulatorModel {
     private final Deque<List<Wall>> redoStack = new ArrayDeque<>();
     private final List<Consumer<Change>> listeners = new CopyOnWriteArrayList<>();
 
+    /** Creates a model with the default template, no devices and default settings. */
     public SimulatorModel() {
         loadTemplate(FloorPlanTemplate.defaultTemplate());
     }
 
+    /** Registers a listener called on the calling thread after every change. */
     public void addListener(Consumer<Change> listener) {
         listeners.add(listener);
     }
 
+    /** Unregisters a listener added with {@link #addListener}. */
     public void removeListener(Consumer<Change> listener) {
         listeners.remove(listener);
     }
@@ -81,6 +88,7 @@ public final class SimulatorModel {
         return environment.getWalls();
     }
 
+    /** Adds copies of the given walls as one undoable edit. */
     public void addWalls(List<Wall> newWalls) {
         if (newWalls == null || newWalls.isEmpty()) {
             return;
@@ -107,6 +115,7 @@ public final class SimulatorModel {
         return true;
     }
 
+    /** Removes one of the live walls of the plan (undoable). */
     public void removeWall(Wall wall) {
         if (!containsWall(wall)) {
             return;
@@ -116,6 +125,7 @@ public final class SimulatorModel {
         fire(Change.WALLS);
     }
 
+    /** Changes the material and thickness of a live wall (undoable). */
     public void updateWall(Wall wall, Material material, double thicknessCm) {
         if (!containsWall(wall)) {
             return;
@@ -126,6 +136,7 @@ public final class SimulatorModel {
         fire(Change.WALLS);
     }
 
+    /** Removes every wall (undoable). */
     public void clearWalls() {
         if (walls().isEmpty()) {
             return;
@@ -149,14 +160,17 @@ public final class SimulatorModel {
         addWalls(template.walls().stream().map(wall -> wall.translated(offsetX, offsetY)).toList());
     }
 
+    /** Whether there is a plan edit to undo. */
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }
 
+    /** Whether there is an undone plan edit to redo. */
     public boolean canRedo() {
         return !redoStack.isEmpty();
     }
 
+    /** Restores the plan before the last edit. Returns false if there is nothing to undo. */
     public boolean undo() {
         if (undoStack.isEmpty()) {
             return false;
@@ -167,6 +181,7 @@ public final class SimulatorModel {
         return true;
     }
 
+    /** Re-applies the last undone edit. Returns false if there is nothing to redo. */
     public boolean redo() {
         if (redoStack.isEmpty()) {
             return false;
@@ -193,6 +208,7 @@ public final class SimulatorModel {
         return wall != null && walls().stream().anyMatch(existing -> existing == wall);
     }
 
+    /** The template the plan was last loaded from, if any. */
     public Optional<FloorPlanTemplate> activeTemplate() {
         return Optional.ofNullable(activeTemplate);
     }
@@ -215,12 +231,14 @@ public final class SimulatorModel {
         return true;
     }
 
+    /** Short name of the plan: the template name, "Custom plan" or "Empty plan". */
     public String scenarioName() {
         if (walls().isEmpty()) return "Empty plan";
         if (matchesActiveTemplate()) return activeTemplate.displayName();
         return "Custom plan";
     }
 
+    /** One-sentence description matching {@link #scenarioName()}. */
     public String scenarioDescription() {
         if (walls().isEmpty()) return "There are no walls in the current plan.";
         if (matchesActiveTemplate()) return activeTemplate.description();
@@ -231,6 +249,7 @@ public final class SimulatorModel {
     // Devices
     // ---------------------------------------------------------------------------------------
 
+    /** The live sensors (read-only list). */
     public List<Sensor> sensors() {
         return Collections.unmodifiableList(sensors);
     }
@@ -248,12 +267,14 @@ public final class SimulatorModel {
         return sensor;
     }
 
+    /** Removes a sensor from the deployment. */
     public void removeSensor(Sensor sensor) {
         if (sensors.remove(sensor)) {
             fire(Change.DEVICES);
         }
     }
 
+    /** The hub, if it has been placed. */
     public Optional<Hub> hub() {
         return Optional.ofNullable(hub);
     }
@@ -269,6 +290,7 @@ public final class SimulatorModel {
         return hub;
     }
 
+    /** Removes the hub. */
     public void removeHub() {
         if (hub != null) {
             hub = null;
@@ -316,10 +338,12 @@ public final class SimulatorModel {
     // Radio environment and engine settings
     // ---------------------------------------------------------------------------------------
 
+    /** The live radio environment; call {@link #radioChanged()} after mutating it. */
     public Environment environment() {
         return environment;
     }
 
+    /** The live engine settings; call {@link #settingsChanged()} after mutating them. */
     public SimulationSettings settings() {
         return settings;
     }
@@ -334,6 +358,7 @@ public final class SimulatorModel {
         fire(Change.SETTINGS);
     }
 
+    /** Must be called after changing how results are displayed (e.g. the heatmap metric). */
     public void displayChanged() {
         fire(Change.DISPLAY);
     }
@@ -430,6 +455,7 @@ public final class SimulatorModel {
         return PropagationEngine.computeCell(environment, sensors, x, y, receiverSettings());
     }
 
+    /** Detached copies of the environment, the sensors and the heatmap settings. */
     public record Snapshot(Environment environment, List<Sensor> sensors, SimulationSettings settings) {
     }
 }

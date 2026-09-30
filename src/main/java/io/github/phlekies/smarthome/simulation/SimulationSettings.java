@@ -22,13 +22,16 @@ public class SimulationSettings {
     private int maxDiffractionPaths = 2;
     private int maxScatteringPaths = 1;
 
+    /** Default settings: incoherent sum, no fading, all mechanisms enabled. */
     public SimulationSettings() {
     }
 
+    /** Copy constructor. */
     public SimulationSettings(SimulationSettings other) {
         copyFrom(other);
     }
 
+    /** Independent copy. */
     public SimulationSettings copy() {
         return new SimulationSettings(this);
     }

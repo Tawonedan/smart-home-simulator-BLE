@@ -17,7 +17,14 @@ public final class LinkValidator {
 
     private static final double MIN_LINEAR = 1e-15;
 
-    /** One comparison between a value produced by the engine and its closed-form expectation. */
+    /**
+     * One comparison between a value produced by the engine and its closed-form expectation.
+     *
+     * @param parameter what is being checked, with its formula
+     * @param actual    value produced by the engine, formatted
+     * @param expected  value recomputed from the formula, formatted
+     * @param ok        whether both agree within tolerance
+     */
     public record Check(String parameter, String actual, String expected, boolean ok) {
     }
 

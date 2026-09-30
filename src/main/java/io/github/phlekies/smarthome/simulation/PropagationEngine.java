@@ -42,6 +42,7 @@ public final class PropagationEngine {
     private PropagationEngine() {
     }
 
+    /** Same as the monitored overload, without progress reporting or cancellation. */
     public static HeatmapResult computeHeatmap(Environment env, List<Sensor> sensors,
                                                int width, int height, SimulationSettings settings) {
         return computeHeatmap(env, sensors, width, height, settings, ComputationMonitor.NONE);

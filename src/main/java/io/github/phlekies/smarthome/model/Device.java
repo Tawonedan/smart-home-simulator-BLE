@@ -10,6 +10,7 @@ public abstract class Device {
     private int x;
     private int y;
 
+    /** Creates a device at whole-metre coordinates. */
     protected Device(String id, String name, int x, int y) {
         this.id = Objects.requireNonNull(id, "id");
         this.name = Objects.requireNonNull(name, "name");
@@ -37,11 +38,13 @@ public abstract class Device {
         return y;
     }
 
+    /** Moves the device to whole-metre coordinates. */
     public void moveTo(int x, int y) {
         this.x = x;
         this.y = y;
     }
 
+    /** Straight-line distance to another device, in metres. */
     public double distanceTo(Device other) {
         return Math.hypot(other.x - x, other.y - y);
     }

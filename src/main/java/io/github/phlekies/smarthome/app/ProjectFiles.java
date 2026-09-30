@@ -53,14 +53,17 @@ public final class ProjectFiles {
     private ProjectFiles() {
     }
 
+    /** Saves a project as UTF-8 JSON. */
     public static void write(ProjectState state, Path file) throws IOException {
         Files.writeString(file, toJson(state), StandardCharsets.UTF_8);
     }
 
+    /** Loads a project; see {@link #fromJson(String)} for the validation rules. */
     public static ProjectState read(Path file) throws IOException {
         return fromJson(Files.readString(file, StandardCharsets.UTF_8));
     }
 
+    /** Serialises a project to indented JSON. */
     public static String toJson(ProjectState state) {
         return MAPPER.writeValueAsString(ProjectFile.of(state));
     }

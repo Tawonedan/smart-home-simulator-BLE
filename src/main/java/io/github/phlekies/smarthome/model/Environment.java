@@ -45,10 +45,12 @@ public class Environment {
         setWalls(other.walls);
     }
 
+    /** Receiver noise floor for the current bandwidth and noise figure. */
     public double noiseFloorDbm() {
         return RadioMath.noiseFloorDbm(bandwidthHz, noiseFigureDb);
     }
 
+    /** Carrier wavelength. */
     public double wavelengthMeters() {
         return RadioMath.wavelengthMeters(freqMHz);
     }
@@ -71,6 +73,7 @@ public class Environment {
         walls.add(wall);
     }
 
+    /** Removes a wall instance. Returns false if it was not part of the environment. */
     public boolean removeWall(Wall wall) {
         return walls.remove(wall);
     }

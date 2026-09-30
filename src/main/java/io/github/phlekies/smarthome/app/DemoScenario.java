@@ -18,6 +18,7 @@ public final class DemoScenario {
     private DemoScenario() {
     }
 
+    /** Two-bedroom apartment with six typical smart-home devices and a hub in a corner. */
     public static ProjectState smartApartment() {
         FloorPlanTemplate template = FloorPlanTemplate.TWO_BEDROOM_APARTMENT;
         Environment env = new Environment();

@@ -8,10 +8,12 @@ public class Hub extends Device {
     private double receiverGainDb = 0.0;
     private double polarizationDeg = 0.0;
 
+    /** Creates a hub with an isotropic 0 dB antenna. */
     public Hub(String id, String name, int x, int y) {
         super(id, name, x, y);
     }
 
+    /** Deep copy. */
     public Hub copy() {
         Hub copy = new Hub(getId(), getName(), getX(), getY());
         copy.receiverGainDb = receiverGainDb;

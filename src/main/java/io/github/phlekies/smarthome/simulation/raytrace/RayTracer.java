@@ -31,10 +31,20 @@ public final class RayTracer {
     /** Free-space loss is evaluated from this distance to avoid the singularity at the source. */
     private static final double MIN_LOSS_DISTANCE = 0.1;
 
-    /** Tracing limits. */
+    /**
+     * Tracing limits.
+     *
+     * @param angularStepDeg         angle between two launched rays
+     * @param maxInteractions        walls a ray may cross or reflect on before it stops
+     * @param maxPathLengthMeters    longest path a ray may travel
+     * @param powerFloorDbm          rays weaker than this are dropped
+     * @param hubCaptureRadiusMeters rays passing this close to the hub end there
+     * @param maxSegments            safety cap on the total number of segments
+     */
     public record Settings(double angularStepDeg, int maxInteractions, double maxPathLengthMeters,
                            double powerFloorDbm, double hubCaptureRadiusMeters, int maxSegments) {
 
+        /** 10° fan, 3 interactions, 60 m, −100 dBm floor, 30 cm hub capture radius. */
         public static Settings defaults() {
             return new Settings(10.0, 3, 60.0, -100.0, 0.30, 20_000);
         }

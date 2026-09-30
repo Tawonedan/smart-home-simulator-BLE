@@ -20,6 +20,7 @@ public class Sensor extends Device {
     private double sideLobeAttenuationDb = 18.0;
     private double polarizationDeg = 0.0;
 
+    /** Creates an omnidirectional sensor transmitting at {@link #DEFAULT_TX_POWER_DBM}. */
     public Sensor(String id, String name, int x, int y) {
         super(id, name, x, y);
     }
@@ -163,6 +164,7 @@ public class Sensor extends Device {
         return angles;
     }
 
+    /** Human-readable summary of the position and the antenna configuration. */
     public String describe() {
         return String.format(Locale.US,
                 "%s at (%d, %d): Tx %.1f dBm, %s antenna, gain %.1f dB, beam %.0f°, orientation %.0f°, polarization %.0f°",
