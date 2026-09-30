@@ -30,6 +30,9 @@ final class Icons {
     static final Ikon LIGHT = Material2MZ.WB_SUNNY;
     static final Ikon LINKS = Material2MZ.TIMELINE;
     static final Ikon INFO = Material2AL.INFO;
+    static final Ikon ZOOM_IN = Material2MZ.ZOOM_IN;
+    static final Ikon ZOOM_OUT = Material2MZ.ZOOM_OUT;
+    static final Ikon FIT = Material2AL.FULLSCREEN;
 
     private Icons() {
     }

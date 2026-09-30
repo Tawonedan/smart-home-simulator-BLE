@@ -25,7 +25,8 @@ final class EditorToolBar {
     private EditorToolBar() {
     }
 
-    static ToolBar build(SimulatorModel model, UiState state, SimulationController simulation) {
+    static ToolBar build(SimulatorModel model, UiState state, SimulationController simulation,
+                         PlanViewport viewport) {
         ToggleGroup tools = new ToggleGroup();
         HBox toolButtons = new HBox();
         EditorTool[] values = EditorTool.values();
@@ -93,12 +94,21 @@ final class EditorToolBar {
                 () -> Icons.of(state.darkTheme.get() ? Icons.LIGHT : Icons.DARK), state.darkTheme));
         theme.setTooltip(new Tooltip("Switch between the dark and the light theme"));
 
+        Button zoomOut = iconButton(Icons.ZOOM_OUT, "Zoom out (Ctrl+-)", viewport::zoomOut);
+        Button zoomIn = iconButton(Icons.ZOOM_IN, "Zoom in (Ctrl++, or Ctrl + mouse wheel)", viewport::zoomIn);
+        Button fit = iconButton(Icons.FIT, "Fit the plan to the window (Ctrl+0)", viewport::fit);
+        Label zoomLabel = new Label();
+        zoomLabel.getStyleClass().add("zoom-label");
+        zoomLabel.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
+                () -> Math.round(viewport.zoomProperty().get() * 100) + "%", viewport.zoomProperty()));
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Label metricLabel = new Label("Metric");
 
         ToolBar bar = new ToolBar(toolButtons, new Separator(), undo, redo, new Separator(), heatmap, metricLabel,
-                metric, new Separator(), rays, waves, optimise, spacer, theme);
+                metric, new Separator(), rays, waves, optimise, spacer, zoomOut, zoomLabel, zoomIn, fit,
+                new Separator(), theme);
         bar.getStyleClass().add("editor-toolbar");
         return bar;
     }

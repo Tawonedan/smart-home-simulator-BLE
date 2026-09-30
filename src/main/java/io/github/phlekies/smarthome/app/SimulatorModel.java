@@ -31,6 +31,9 @@ public final class SimulatorModel {
     public static final int PLAN_WIDTH_METERS = 50;
     public static final int PLAN_HEIGHT_METERS = 40;
 
+    /** Transmit power of sensors added by the user: a typical battery-powered Zigbee/BLE device. */
+    public static final double NEW_SENSOR_TX_POWER_DBM = 0.0;
+
     private static final int MAX_UNDO_STEPS = 100;
     private static final String HUB_ID = "H1";
 
@@ -232,10 +235,14 @@ public final class SimulatorModel {
         return Collections.unmodifiableList(sensors);
     }
 
-    /** Adds a sensor with the next free id ({@code S1}, {@code S2}...), clamped to the plan. */
+    /**
+     * Adds a sensor with the next free id ({@code S1}, {@code S2}...), clamped to the plan and
+     * transmitting at {@link #NEW_SENSOR_TX_POWER_DBM}.
+     */
     public Sensor addSensor(int x, int y) {
         int number = nextSensorNumber();
         Sensor sensor = new Sensor("S" + number, "Sensor " + number, clampX(x), clampY(y));
+        sensor.setTxPowerDbm(NEW_SENSOR_TX_POWER_DBM);
         sensors.add(sensor);
         fire(Change.DEVICES);
         return sensor;

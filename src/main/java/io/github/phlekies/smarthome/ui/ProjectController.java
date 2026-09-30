@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 import javafx.application.HostServices;
-import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -35,20 +34,25 @@ final class ProjectController {
     private final UiState state;
     private final Stage stage;
     private final HostServices hostServices;
-    private final Node exportNode;
+    private final PlanImage planImage;
 
     private Path currentFile;
     private String projectName = "Untitled";
     private boolean dirty;
     private boolean loading;
 
-    /** @param exportNode the node captured when exporting an image (the plan with its legend) */
-    ProjectController(SimulatorModel model, UiState state, Stage stage, HostServices hostServices, Node exportNode) {
+    /** Renders the plan (with its legend) for image and report export. */
+    @FunctionalInterface
+    interface PlanImage {
+        byte[] png() throws IOException;
+    }
+
+    ProjectController(SimulatorModel model, UiState state, Stage stage, HostServices hostServices, PlanImage planImage) {
         this.model = model;
         this.state = state;
         this.stage = stage;
         this.hostServices = hostServices;
-        this.exportNode = exportNode;
+        this.planImage = planImage;
         model.addListener(change -> {
             if (!loading && change != SimulatorModel.Change.DISPLAY && !dirty) {
                 dirty = true;
@@ -154,7 +158,7 @@ final class ProjectController {
             return;
         }
         try {
-            Files.write(file.toPath(), Snapshots.png(exportNode));
+            Files.write(file.toPath(), planImage.png());
             state.status.set("Plan image exported to " + file.getName() + ".");
         } catch (IOException ex) {
             error("Could not export the image", ex.getMessage());
@@ -168,7 +172,7 @@ final class ProjectController {
             return;
         }
         try {
-            String html = CoverageReport.html(model, state.coverage.get(), Snapshots.png(exportNode), LocalDateTime.now());
+            String html = CoverageReport.html(model, state.coverage.get(), planImage.png(), LocalDateTime.now());
             Files.writeString(file.toPath(), html, StandardCharsets.UTF_8);
             state.status.set("Report exported to " + file.getName() + ".");
             hostServices.showDocument(file.toURI().toString());

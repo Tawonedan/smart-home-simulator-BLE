@@ -27,7 +27,8 @@ final class AppMenuBar {
     }
 
     static MenuBar build(SimulatorModel model, UiState state, ProjectController projects,
-                         SimulationController simulation, FloorPlanEditor editor, Stage stage) {
+                         SimulationController simulation, FloorPlanEditor editor, PlanViewport viewport,
+                         Stage stage) {
         Menu examples = new Menu("Open example");
         examples.getItems().addAll(
                 item("Smart apartment", null, () -> projects.openExample("Smart apartment", DemoScenario.smartApartment())),
@@ -75,7 +76,12 @@ final class AppMenuBar {
         CheckMenuItem dark = new CheckMenuItem("Dark theme");
         dark.setAccelerator(shortcut(KeyCode.T));
         dark.selectedProperty().bindBidirectional(state.darkTheme);
-        Menu view = new Menu("View", null, heatmap, links, new SeparatorMenuItem(), dark);
+        Menu view = new Menu("View", null, heatmap, links, new SeparatorMenuItem(),
+                item("Zoom in", shortcut(KeyCode.EQUALS), viewport::zoomIn),
+                item("Zoom out", shortcut(KeyCode.MINUS), viewport::zoomOut),
+                item("Fit to window", shortcut(KeyCode.DIGIT0), viewport::fit),
+                item("Actual size", null, viewport::actualSize),
+                new SeparatorMenuItem(), dark);
 
         Menu simulationMenu = new Menu("Simulation", null,
                 item("Optimise hub position", shortcut(KeyCode.P), simulation::optimiseHub),

@@ -39,6 +39,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("com.tngtech.archunit:archunit:1.5.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Headless JavaFX platform, so the UI tests run on CI machines without a display.
+    testRuntimeOnly("org.testfx:openjfx-monocle:21.0.2") { exclude(group = "org.openjfx") }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -65,6 +67,10 @@ tasks.named<JavaExec>("run") {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("glass.platform", "Monocle")
+    systemProperty("monocle.platform", "Headless")
+    systemProperty("prism.order", "sw")
+    systemProperty("java.awt.headless", "true")
     testLogging {
         events("failed", "skipped")
         showStandardStreams = false

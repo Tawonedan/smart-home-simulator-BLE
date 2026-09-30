@@ -156,6 +156,11 @@ class SimulatorModelTest {
         }
 
         @Test
+        void newSensorsTransmitLikeBatteryDevices() {
+            assertEquals(SimulatorModel.NEW_SENSOR_TX_POWER_DBM, model.addSensor(3, 3).getTxPowerDbm());
+        }
+
+        @Test
         void devicesAreClampedToThePlan() {
             Sensor sensor = model.addSensor(-5, 99);
             assertEquals(0, sensor.getX());

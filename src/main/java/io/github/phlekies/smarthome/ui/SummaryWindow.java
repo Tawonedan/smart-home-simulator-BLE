@@ -3,8 +3,10 @@ package io.github.phlekies.smarthome.ui;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import javafx.animation.PauseTransition;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -18,6 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 import io.github.phlekies.smarthome.app.SimulatorModel;
 import io.github.phlekies.smarthome.model.Environment;
@@ -43,15 +46,17 @@ final class SummaryWindow {
         this.settings = model.settings();
     }
 
+    /** Opens the window. It refreshes itself while open, so it never shows stale numbers. */
     void show(Window owner) {
-        CellResult hubLink = model.hubLink().orElse(null);
-
-        TabPane tabs = new TabPane(
-                tab("Overview", overviewPage(hubLink)),
-                tab("Hub", hubPage(hubLink)),
-                tab("Sensors", sensorsPage()),
-                tab("Validation", validationPage(hubLink)));
+        TabPane tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        refresh(tabs);
+
+        // Rebuild shortly after the last change, so dragging a device does not rebuild on every step.
+        PauseTransition debounce = new PauseTransition(Duration.millis(250));
+        debounce.setOnFinished(e -> refresh(tabs));
+        Consumer<SimulatorModel.Change> listener = change -> debounce.playFromStart();
+        model.addListener(listener);
 
         Scene scene = new Scene(tabs, 920, 740);
         scene.getStylesheets().addAll(owner.getScene().getStylesheets());
@@ -59,7 +64,22 @@ final class SummaryWindow {
         stage.initOwner(owner);
         stage.setTitle("Simulation summary");
         stage.setScene(scene);
+        stage.setOnHidden(e -> {
+            model.removeListener(listener);
+            debounce.stop();
+        });
         stage.show();
+    }
+
+    private void refresh(TabPane tabs) {
+        int selected = Math.max(0, tabs.getSelectionModel().getSelectedIndex());
+        CellResult hubLink = model.hubLink().orElse(null);
+        tabs.getTabs().setAll(
+                tab("Overview", overviewPage(hubLink)),
+                tab("Hub", hubPage(hubLink)),
+                tab("Sensors", sensorsPage()),
+                tab("Validation", validationPage(hubLink)));
+        tabs.getSelectionModel().select(selected);
     }
 
     // ---------------------------------------------------------------------------------------
