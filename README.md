@@ -4,6 +4,7 @@
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![JavaFX 21](https://img.shields.io/badge/JavaFX-21-blue)
 ![Gradle](https://img.shields.io/badge/build-Gradle-02303A)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Desktop simulator of **indoor Wi-Fi propagation** for smart-home and IoT deployments.
 Draw a floor plan, place sensors and a hub, and see how walls, materials, reflections and
@@ -148,3 +149,7 @@ pipeline:
 
 Started in 2025 as a Java learning project and rebuilt in 2026 into a layered, tested and
 continuously integrated application.
+
+## License
+
+Released under the [MIT License](LICENSE).
