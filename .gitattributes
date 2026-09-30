@@ -1,0 +1,15 @@
+# Normalize line endings: LF in the repository, native on checkout.
+* text=auto
+
+# Scripts that must keep a specific line ending on every OS
+gradlew  text eol=lf
+*.sh     text eol=lf
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+# Binaries
+*.jar    binary
+*.png    binary
+*.gif    binary
+*.jpg    binary
+*.ico    binary

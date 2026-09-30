@@ -1,9 +1,6 @@
 package env;
 
-import core.Obstacle;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import core.Wall;
@@ -61,10 +58,6 @@ public class Environment {
      *  Escenario
      * ========================== */
 
-    /** Obstáculos/paredes del entorno (segmentos). 
-     *  Más adelante puedes sustituir Obstacle por Wall con Material. */
-    private final List<Obstacle> obstaculos;
-
     /* ==========================
      *  Constructores
      * ========================== */
@@ -76,7 +69,6 @@ public class Environment {
         this.bandwidthHz     = 20e6;        // 20 MHz
         this.noiseFigureDb   = 7.0;         // dB
         this.systemGainDb    = 0.0;         // dB
-        this.obstaculos      = new ArrayList<>();
         this.walls = new ArrayList<>();
     }
 
@@ -115,59 +107,6 @@ public class Environment {
         return this.freqMHz * 1e6;
     }
     
-    public static final List<Wall> WALLS_TEMPLATE_House1 = java.util.Arrays.asList(
-    		// 🔹 Perímetro exterior
-    	    new Wall(0, 10, 10, 10, BRICK, 10),      // base izquierda
-    	    new Wall(10, 10, 10, 25, BRICK, 10),     // pared izquierda
-    	    new Wall(10, 25, 28, 25, BRICK, 10),     // techo superior
-    	    new Wall(28, 25, 28, 8, BRICK, 10),      // pared derecha
-    	    new Wall(28, 8, 20, 8, BRICK, 10),       // base derecha
-    	    new Wall(20, 9, 20, 17, BRICK, 10),      // subida central derecha
-    	    new Wall(20, 17, 27, 17, BRICK, 10),     // horizontal hab. derecha
-    	    new Wall(28, 17, 28, 8, BRICK, 10),		// cierre hab. derecha
-    	    new Wall(0, 8 , 20 , 8, BRICK, 10 ),
-
-    	    // 🔹 Interiores
-    	    new Wall(10, 14, 14, 14, BRICK, 10),     // horizontal interior izquierda
-    	    new Wall(15, 14, 15, 19, BRICK, 10),     // vertical interior central
-    	    new Wall(15, 19, 12, 19, BRICK, 10),     // horizontal corta hacia izq
-    	    new Wall(12, 19, 12, 24, BRICK, 10),      // conecta con techo
-    	    new Wall(12, 25, 12, 24, BRICK, 10)
-    	);
-
-    	public static final List<Wall> WALLS_TEMPLATE_2_MAT = java.util.Arrays.asList(
-    	    new Wall(10, 0, 10, 12, BRICK, 10)
-    	);
-
-    	// En Environment (o donde declares tus plantillas)
-    	public static final java.util.List<Wall> WALLS_TEMPLATE_DRAWN = java.util.Arrays.asList(
-    	    // tramo horizontal izq (y = 10, x: 0→9)
-    	    new Wall(0, 10, 9, 10, BRICK , 10),
-
-    	    // vertical izq abajo (x = 9, y: 0→7)
-    	    new Wall(9, 0, 9, 7, BRICK , 10),
-
-    	    // vertical izq arriba (x = 9, y: 11→24)
-    	    new Wall(9, 11, 9, 24, BRICK , 10),
-
-    	    // vertical central (x = 17, y: 0→16)
-    	    new Wall(17, 0, 17, 16, BRICK , 10),
-
-    	    // horizontal superior central (y = 16, x: 17→26)
-    	    new Wall(17, 16, 26, 16, BRICK , 10),
-
-    	    // vertical derecha corta (x = 27, y: 24→18)
-    	    new Wall(27, 24, 27, 18, BRICK , 10),
-    	    
-    	    new Wall(0, 0, 0, 24, CONCRETE, 15),  // hormigón 15 cm
-    	    
-    	    new Wall(40, 0, 40, 24, CONCRETE, 15),
-    	    
-    	    new Wall(0, 24, 40, 24, BRICK, 12),
-    	    
-    	    new Wall(0, 0, 40, 0, BRICK, 12)
-    	);
-    	
     	public static final String TEMPLATE_STUDIO_COMPACT = "Estudio compacto";
     	public static final String TEMPLATE_APARTMENT_TWO_BEDROOM = "Apartamento 2 dormitorios";
     	public static final String TEMPLATE_HOUSE_WITH_CORRIDOR = "Casa con pasillo";
@@ -424,12 +363,6 @@ public class Environment {
     		walls.add(new Wall(x1, y1, x2, y2, material, thicknessCm));
     	}
 
-
-    
-        
-    
-        
-        
      // Obstáculos → Paredes
         public List<Wall> getWalls() { return Collections.unmodifiableList(walls); }
         public void clearWalls() { walls.clear(); }
@@ -444,8 +377,6 @@ public class Environment {
             walls.clear();
             addWalls(list);
         }
-        
-        
 
     /* ==========================
      *  Getters / Setters
@@ -494,31 +425,6 @@ public class Environment {
     }
 
     /* ==========================
-     *  Obstáculos
-     * ========================== */
-
-    public List<Obstacle> getObstaculos() {
-        return Collections.unmodifiableList(obstaculos);
-    }
-
-    public void clearObstaculos() {
-        obstaculos.clear();
-    }
-
-    public void addObstaculo(Obstacle o) {
-        if (o != null) obstaculos.add(o);
-    }
-
-    public void addObstaculos(List<Obstacle> lista) {
-        if (lista != null) obstaculos.addAll(lista);
-    }
-
-    public void setObstaculos(List<Obstacle> lista) {
-        obstaculos.clear();
-        if (lista != null) obstaculos.addAll(lista);
-    }
-
-    /* ==========================
      *  Helpers de formato (opcional)
      * ========================== */
 
@@ -530,7 +436,7 @@ public class Environment {
                 ", noiseFigureDb=" + noiseFigureDb +
                 ", alphaDbPerMeter=" + alphaDbPerMeter +
                 ", systemGainDb=" + systemGainDb +
-                ", obstaculos=" + obstaculos.size() +
+                ", walls=" + walls.size() +
                 '}';
     }
 }

@@ -127,10 +127,10 @@ public class Sensor extends Device {
                 ", Tx=" + txDbm + " dBm" +
                 ", gain=" + txGainDb + " dB" +
                 ", antenna=" + antennaType +
-                ", beam=" + beamwidthDeg + "Â°" +
-                ", orient=" + orientationDeg + "Â°" +
+                ", beam=" + beamwidthDeg + "°" +
+                ", orient=" + orientationDeg + "°" +
                 ", pattern=" + patternSharpness +
-                ", pol=" + polarizationDeg + "Â°" +
+                ", pol=" + polarizationDeg + "°" +
                 '}';
     }
 }

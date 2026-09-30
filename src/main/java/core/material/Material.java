@@ -11,9 +11,9 @@ public class Material {
 
     /** Opcional: factor por grosor (lineal simple dB por cm). */
     private final double dbPerCm; // 0 si no lo usas
-    /** Sesgo del material al reflejar: menor valor => reflejo mÃ¡s intenso. */
+    /** Sesgo del material al reflejar: menor valor => reflejo más intenso. */
     private final double reflectionBiasDb;
-    /** Rugosidad equivalente: controla cuÃ¡nta energÃ­a se dispersa. */
+    /** Rugosidad equivalente: controla cuánta energía se dispersa. */
     private final double roughnessDb;
 
     public Material(String name, double lossDbAt24, double lossDbAt5, double dbPerCm) {

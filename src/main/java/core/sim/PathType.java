@@ -2,9 +2,9 @@ package core.sim;
 
 public enum PathType {
     DIRECT("Directo"),
-    REFLECTION("ReflexiÃ³n"),
-    DIFFRACTION("DifracciÃ³n"),
-    SCATTER("DispersiÃ³n");
+    REFLECTION("Reflexión"),
+    DIFFRACTION("Difracción"),
+    SCATTER("Dispersión");
 
     private final String label;
 

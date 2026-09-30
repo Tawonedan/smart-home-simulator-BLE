@@ -35,7 +35,7 @@ Este simulador esta pensado para estudiar como se comportan las senales de dispo
 
 ## Flujo de trabajo en la interfaz
 
-La app principal vive en `src/UI/VisualGridApp.java` y organiza el panel lateral en cinco grupos.
+La app principal vive en `src/main/java/UI/VisualGridApp.java` y organiza el panel lateral en cinco grupos.
 
 ### 1. Dispositivos
 
@@ -333,42 +333,44 @@ El simulador incorpora un catalogo de escenarios listos para probar:
 
 ## Estructura del proyecto
 
-- `src/UI/`
+Proyecto Gradle con la estructura estandar (`src/main/java`):
+
+- `src/main/java/UI/`
   - Interfaz JavaFX principal.
-  - Entrada de la aplicacion: `UI.VisualGridApp`.
-- `src/core/`
-  - Entidades base como `Sensor`, `Hub`, `Wall`, `Propagation` y el ray tracing legacy.
-- `src/core/sim/`
+  - Ventana principal: `UI.VisualGridApp`; punto de entrada: `UI.Launcher`.
+- `src/main/java/core/`
+  - Entidades base como `Sensor`, `Hub`, `Wall` y utilidades de propagacion (`Propagation`).
+- `src/main/java/core/sim/`
   - Motor indoor de simulacion por celdas: `IndoorWaveEngine`, `CellResult`, `HeatmapResult`, `SimulationSettings`, etc.
-- `src/core/material/`
+- `src/main/java/core/material/`
   - Materiales, interacciones pared-onda y base de materiales.
-- `src/env/`
+- `src/main/java/env/`
   - Definicion del entorno fisico y plantillas interiores.
+- `build.gradle.kts`, `settings.gradle.kts`, `gradlew`, `gradlew.bat`, `gradle/wrapper/`
+  - Build con Gradle Wrapper: no hace falta instalar Gradle ni JavaFX.
 
 ## Requisitos
 
-Probado con:
+- JDK 21 o superior (`java -version` para comprobarlo).
 
-- JDK 22.0.2
-- JavaFX SDK 24.0.2
+Gradle y JavaFX (21 LTS) se descargan automaticamente la primera vez que se ejecuta el wrapper.
 
 ## Compilacion y ejecucion
 
-Ejemplo en PowerShell:
+```bash
+# Windows
+gradlew.bat run
 
-```powershell
-$mp = "C:/javafx-sdk-24.0.2/lib"
-$src = Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName }
-
-javac --module-path $mp --add-modules javafx.controls,javafx.graphics -d bin $src
-java --module-path $mp --add-modules javafx.controls,javafx.graphics -cp bin UI.VisualGridApp
+# Linux / macOS
+./gradlew run
 ```
 
-Si usas Eclipse:
+Otras tareas utiles:
 
-- anade JavaFX al `module-path`
-- asegure que `bin/` se recompila correctamente
-- ejecuta `UI.VisualGridApp`
+- `gradlew build`: compila y genera `build/distributions/smart-home-simulator-*.zip` con scripts de arranque.
+- `gradlew clean`: borra la carpeta `build/`.
+
+Para abrirlo en un IDE, importalo como proyecto Gradle (IntelliJ IDEA, Eclipse con Buildship o VS Code con Extension Pack for Java).
 
 ## Limitaciones actuales
 

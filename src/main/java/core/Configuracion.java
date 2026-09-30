@@ -69,16 +69,4 @@ public class Configuracion {
     public Hub getHub() { return hub; }
     public void setHub(Hub hub) { this.hub = hub; }
     public boolean hasHub() { return hub != null; }
-
-    // ======= Obstáculos legacy =======
-    private final List<Obstacle> obstaculos = new ArrayList<>();
-
-    public void setObstaculos(List<Obstacle> walls) {
-        obstaculos.clear();
-        obstaculos.addAll(walls);
-    }
-
-    public List<Obstacle> getObstaculos() {
-        return Collections.unmodifiableList(obstaculos);
-    }
 }

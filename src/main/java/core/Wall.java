@@ -3,7 +3,7 @@ package core;
 import core.material.Material;
 
 public class Wall {
-    private double x1, y1, x2, y2;     // segmento (mismo sistema que Obstacle)
+    private double x1, y1, x2, y2;     // segmento en metros (1 celda = 1 m)
     private Material material;
     private double thicknessCm;        // grosor (opcional; 0 si no usado)
 

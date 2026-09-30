@@ -37,7 +37,7 @@ public final class Propagation {
 
     /**
      * Modelo indoor log-distance anclado a 1 m.
-     * Para n=2 reproduce aproximadamente la FSPL clÃ¡sica en espacio libre.
+     * Para n=2 reproduce aproximadamente la FSPL clásica en espacio libre.
      */
     public static double logDistanceLossDb(double distanceMeters, double freqMHz, double pathLossExponent){
         if (distanceMeters <= 0) return 0.0;
@@ -70,7 +70,7 @@ public final class Propagation {
         return 0.5 * erfcApprox(Math.sqrt(snrLinear));
     }
 
-    /** PÃ©rdida adicional de difracciÃ³n por filo de cuchillo (ITU-R simplificado). */
+    /** Pérdida adicional de difracción por filo de cuchillo (ITU-R simplificado). */
     public static double knifeEdgeLossDb(double v){
         if (v <= -0.78) return 0.0;
         double term = Math.sqrt((v - 0.1) * (v - 0.1) + 1.0) + v - 0.1;
@@ -88,7 +88,7 @@ public final class Propagation {
     }
 
     private static double erfcApprox(double x){
-        // AproximaciÃ³n de Abramowitz & Stegun 7.1.26.
+        // Aproximación de Abramowitz & Stegun 7.1.26.
         double sign = (x < 0) ? -1.0 : 1.0;
         double ax = Math.abs(x);
         double t = 1.0 / (1.0 + 0.3275911 * ax);
