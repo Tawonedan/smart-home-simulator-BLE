@@ -10,6 +10,7 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -71,6 +72,9 @@ public final class SimulatorApp extends Application {
         Scene scene = new Scene(root);
         scene.getStylesheets().add(SimulatorApp.class.getResource("app.css").toExternalForm());
         stage.setScene(scene);
+        for (int size : new int[] { 16, 32, 48, 64, 128, 256 }) {
+            stage.getIcons().add(new Image(SimulatorApp.class.getResourceAsStream("icon-" + size + ".png")));
+        }
         stage.setMinWidth(900);
         stage.setMinHeight(600);
         stage.sizeToScene();

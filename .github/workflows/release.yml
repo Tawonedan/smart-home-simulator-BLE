@@ -1,0 +1,102 @@
+name: Release
+
+# Pushing a tag such as v1.0.0 builds native packages on every operating system and publishes
+# them as a GitHub release, with the notes taken from CHANGELOG.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package (${{ matrix.asset }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            type: app-image
+            asset: windows-x64
+          - os: macos-latest
+            type: dmg
+            asset: macos-arm64
+          - os: ubuntu-latest
+            type: deb
+            asset: linux-x64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Test and build the native package
+        run: ./gradlew test jpackage -PinstallerType=${{ matrix.type }} --no-daemon
+
+      - name: Collect the package
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME="SmartHomeSimulator-${VERSION}-${{ matrix.asset }}"
+          mkdir dist
+          cd build/jpackage
+          if [ "${{ matrix.type }}" = "app-image" ]; then
+            7z a -tzip "../../dist/${NAME}.zip" SmartHomeSimulator > /dev/null
+          else
+            for file in *; do mv "$file" "../../dist/${NAME}.${file##*.}"; done
+          fi
+          ls -l ../../dist
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Release notes: the CHANGELOG section of this version.
+          awk -v version="$VERSION" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          cat >> notes.md <<'EOF'
+
+          ### Downloads
+          No Java installation is needed: each package bundles its own runtime.
+          - **Windows**: unzip `SmartHomeSimulator-*-windows-x64.zip` and run `SmartHomeSimulator.exe`.
+          - **macOS** (Apple silicon): open the `.dmg` and drag the app to Applications. The build is not
+            notarised, so the first time right-click the app and choose *Open*.
+          - **Linux** (Debian/Ubuntu): `sudo apt install ./SmartHomeSimulator-*-linux-x64.deb`.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Smart Home Simulator ${VERSION}" --notes-file notes.md

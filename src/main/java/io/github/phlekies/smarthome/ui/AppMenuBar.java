@@ -120,7 +120,7 @@ final class AppMenuBar {
                 ray tracing and automatic hub placement.
 
                 Java 21 · JavaFX 21 · MIT License
-                https://github.com/Phlekies/Smart_Home_Simulator_2""", ButtonType.OK);
+                https://github.com/Phlekies/smart-home-simulator""", ButtonType.OK);
         alert.initOwner(owner);
         alert.setTitle("About");
         alert.setHeaderText("Smart Home Simulator");

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.github.phlekies"
-version = "0.4.0"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -83,4 +83,61 @@ tasks.jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+tasks.javadoc {
+    (options as StandardJavadocDocletOptions).apply {
+        encoding = "UTF-8"
+        addStringOption("Xdoclint:all,-missing", "-quiet")
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Native packages with jpackage: a self-contained application (with its own trimmed Java
+// runtime) for the operating system running the build. `-PinstallerType=` selects the output:
+// app-image (default), dmg, deb, msi or exe (msi/exe need the WiX toolset).
+// ---------------------------------------------------------------------------------------------
+val installerType = providers.gradleProperty("installerType").orElse("app-image")
+
+tasks.register<Exec>("jpackage") {
+    group = "distribution"
+    description = "Builds a native application package for the current operating system."
+    dependsOn(tasks.installDist)
+
+    val os = System.getProperty("os.name").lowercase()
+    val icon = when {
+        os.contains("win") -> "packaging/icons/app.ico"
+        os.contains("mac") -> "packaging/icons/app.icns"
+        else -> "packaging/icons/app.png"
+    }
+    // jpackage ships with every JDK since 14; use the one running Gradle.
+    val jpackageTool = File(System.getProperty("java.home"), if (os.contains("win")) "bin/jpackage.exe" else "bin/jpackage")
+    val output = layout.buildDirectory.dir("jpackage")
+    val input = layout.buildDirectory.dir("install/smart-home-simulator/lib")
+    val type = installerType.get()
+
+    inputs.dir(input)
+    outputs.dir(output)
+    doFirst { delete(output) }
+
+    val arguments = mutableListOf(
+        "--type", type,
+        "--name", "SmartHomeSimulator",
+        "--app-version", project.version.toString(),
+        "--vendor", "Ruben",
+        "--description", "Indoor Wi-Fi propagation simulator for smart-home and IoT deployments",
+        "--copyright", "Copyright (c) 2025-2026 Ruben. MIT License.",
+        "--icon", file(icon).absolutePath,
+        "--input", input.get().asFile.absolutePath,
+        "--main-jar", "smart-home-simulator-${project.version}.jar",
+        "--main-class", "io.github.phlekies.smarthome.Launcher",
+        "--add-modules", "java.base,java.desktop,java.logging,java.xml,java.sql,jdk.unsupported",
+        "--jlink-options", "--strip-debug --no-header-files --no-man-pages",
+        "--java-options", "-Xmx2g",
+        "--dest", output.get().asFile.absolutePath)
+    when {
+        type == "msi" || type == "exe" -> arguments += listOf("--win-menu", "--win-shortcut", "--win-dir-chooser")
+        type == "deb" -> arguments += listOf("--linux-shortcut", "--linux-app-category", "Science")
+    }
+    commandLine(listOf(jpackageTool.absolutePath) + arguments)
 }
