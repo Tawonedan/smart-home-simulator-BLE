@@ -1,0 +1,219 @@
+/* Smart Home Simulator - application stylesheet. */
+
+.root {
+    -fx-font-size: 12px;
+    -accent: #1f6feb;
+    -text-strong: #16212c;
+    -text-muted: #5f6b76;
+    -border: #d8e0e8;
+    -surface: #ffffff;
+    -background: #f4f6f8;
+}
+
+/* ---------- Plan area ---------- */
+
+.plan-area {
+    -fx-background-color: -background;
+}
+
+.status-bar {
+    -fx-padding: 6 12 6 12;
+    -fx-background-color: -surface;
+    -fx-border-color: -border transparent transparent transparent;
+    -fx-spacing: 10;
+}
+
+.status-bar .label {
+    -fx-text-fill: -text-muted;
+}
+
+/* ---------- Side panel ---------- */
+
+.side-panel,
+.side-panel > .viewport {
+    -fx-background: -background;
+    -fx-background-color: -background;
+    -fx-border-color: transparent transparent transparent -border;
+}
+
+.side-content {
+    -fx-padding: 16;
+    -fx-spacing: 14;
+}
+
+.panel-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-strong;
+}
+
+.panel-subtitle {
+    -fx-text-fill: -text-muted;
+}
+
+.section {
+    -fx-padding: 14;
+    -fx-background-color: -surface;
+    -fx-background-radius: 14;
+    -fx-border-color: -border;
+    -fx-border-radius: 14;
+}
+
+.section-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-strong;
+}
+
+.form-grid,
+.button-grid {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+}
+
+.form-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #31414f;
+}
+
+.input {
+    -fx-background-color: white;
+    -fx-border-color: #cfd7df;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.text-field.input {
+    -fx-padding: 7 10 7 10;
+}
+
+.button-primary {
+    -fx-background-color: -accent;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 10;
+    -fx-padding: 9 14 9 14;
+    -fx-cursor: hand;
+}
+
+.button-primary:hover {
+    -fx-background-color: derive(-accent, -12%);
+}
+
+.button-secondary {
+    -fx-background-color: white;
+    -fx-text-fill: #1f2933;
+    -fx-font-weight: bold;
+    -fx-border-color: #cfd7df;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 9 14 9 14;
+    -fx-cursor: hand;
+}
+
+.button-secondary:hover {
+    -fx-background-color: #f1f5f9;
+}
+
+.hint {
+    -fx-text-fill: #425466;
+}
+
+.info-box {
+    -fx-padding: 10;
+    -fx-spacing: 8;
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 10;
+    -fx-border-color: -border;
+    -fx-border-radius: 10;
+}
+
+/* ---------- Summary window ---------- */
+
+.summary-page {
+    -fx-padding: 18;
+    -fx-spacing: 16;
+    -fx-background-color: -background;
+}
+
+.summary-scroll,
+.summary-scroll > .viewport {
+    -fx-background: -background;
+    -fx-background-color: -background;
+}
+
+.summary-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-strong;
+}
+
+.card {
+    -fx-padding: 14;
+    -fx-spacing: 12;
+    -fx-background-color: -surface;
+    -fx-background-radius: 14;
+    -fx-border-color: -border;
+    -fx-border-radius: 14;
+}
+
+.card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-strong;
+}
+
+.card-subtitle {
+    -fx-text-fill: -text-muted;
+}
+
+.summary-grid {
+    -fx-hgap: 12;
+    -fx-vgap: 10;
+}
+
+.summary-value {
+    -fx-text-fill: #102a43;
+}
+
+.metric-tile {
+    -fx-padding: 12;
+    -fx-spacing: 6;
+    -fx-pref-width: 150;
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 12;
+    -fx-border-color: -border;
+    -fx-border-radius: 12;
+}
+
+.metric-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: -text-muted;
+}
+
+.metric-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.table-header {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-muted;
+}
+
+.badge {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-background-radius: 999;
+    -fx-padding: 4 8 4 8;
+}
+
+.badge-ok {
+    -fx-background-color: #0f766e;
+}
+
+.badge-fail {
+    -fx-background-color: #b91c1c;
+}
