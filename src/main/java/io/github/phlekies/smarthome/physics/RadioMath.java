@@ -14,9 +14,27 @@ public final class RadioMath {
     /** Thermal noise power spectral density at 290 K, dBm/Hz. */
     public static final double THERMAL_NOISE_DBM_PER_HZ = -174.0;
 
+    public static final double BLE_CENTER_FREQ_MHZ = 2441.0;
+    public static final double BLE_BANDWIDTH_HZ = 1e6;
+    public static final double WIFI_CENTER_FREQ_MHZ = 2400.0;
+    public static final double WIFI_BANDWIDTH_HZ = 20e6;
+
     private static final double MIN_LINEAR = 1e-15;
 
     private RadioMath() {
+    }
+
+    public static double getPathLossExponent(String environment) {
+        if (environment == null) {
+            return 2.0;
+        }
+        return switch (environment.toLowerCase().trim()) {
+            case "open", "free_space", "free space" -> 2.0;
+            case "residential", "home" -> 2.5;
+            case "office" -> 3.0;
+            case "warehouse", "cluttered" -> 3.5;
+            default -> 2.5;
+        };
     }
 
     /** Free-space path loss (Friis): 32.45 + 20·log10(f[MHz]) + 20·log10(d[km]). */

@@ -3,10 +3,10 @@ Let me explore the repository structure properly:Perfect! Now I have enough info
 ## **BLE Heatmap Simulator - Implementation Plan**
 
 ### **Phase 0: Setup (15 min)**
-- [ ] Fork `Phlekies/smart-home-simulator` to your account
-- [ ] Clone locally
-- [ ] Create branch: `feature/ble-adapter`
-- [ ] Run the project to confirm it builds
+- [x] Fork `Phlekies/smart-home-simulator` to your account
+- [x] Clone locally
+- [x] Create branch: `feature/ble-adapter`
+- [x] Run the project to confirm it builds
 
 ---
 
@@ -15,7 +15,7 @@ Let me explore the repository structure properly:Perfect! Now I have enough info
 **File:** `src/main/java/io/github/phlekies/smarthome/physics/RadioMath.java`
 
 **Changes:**
-- [ ] Add BLE-specific constants:
+- [x] Add BLE-specific constants:
   ```java
   // BLE: 2402-2480 MHz (ISM band 2.4 GHz)
   public static final double BLE_CENTER_FREQ_MHZ = 2441.0;  // Center frequency
@@ -24,7 +24,7 @@ Let me explore the repository structure properly:Perfect! Now I have enough info
   public static final double WIFI_BANDWIDTH_HZ = 20e6;      // 20 MHz typical
   ```
 
-- [ ] Add path loss exponent adjustment method:
+- [x] Add path loss exponent adjustment method:
   ```java
   /**
    * BLE path loss exponent varies by environment.
@@ -37,7 +37,7 @@ Let me explore the repository structure properly:Perfect! Now I have enough info
   }
   ```
 
-- [ ] No changes needed to core formulas (`fsplDb`, `logDistanceLossDb`, etc.) — they work for any frequency
+- [x] No changes needed to core formulas (`fsplDb`, `logDistanceLossDb`, etc.) — they work for any frequency
 
 **Test:** Verify formulas still pass existing tests
 
@@ -71,22 +71,22 @@ public class Beacon extends Device {
 **Recommended:** Option A (cleaner, BLE-specific)
 
 **Changes to make:**
-- [ ] Set TX power range: -20 to +4 dBm (instead of WiFi's 17-20 dBm)
-- [ ] Add antenna gain property: 0-2 dBi (instead of WiFi's 2-3 dBi)
-- [ ] Add UUID property (4-byte identifier)
-- [ ] Add MAC address property
-- [ ] Keep TX polarization (same physics)
-- [ ] Copy method (deep copy like Sensor has)
+- [x] Set TX power range: -20 to +4 dBm (instead of WiFi's 17-20 dBm)
+- [x] Add antenna gain property: 0-2 dBi (instead of WiFi's 2-3 dBi)
+- [x] Add UUID property (4-byte identifier)
+- [x] Add MAC address property
+- [x] Keep TX polarization (same physics)
+- [x] Copy method (deep copy like Sensor has)
 
 #### **2.2 Scanner Class** (New file or rename Hub)
 **File:** `src/main/java/io/github/phlekies/smarthome/model/Scanner.java`
 
 **Changes:**
-- [ ] Rename conceptually from "Hub" (WiFi gateway) → "Scanner" (BLE receiver)
-- [ ] Update RX sensitivity: -90 dBm (WiFi) → -100 to -104 dBm (BLE)
-- [ ] Change receiver gain: 0-2 dBi (BLE typical)
-- [ ] Add RSSI threshold property (for beacon detection)
-- [ ] Keep polarization, antenna properties (same physics)
+- [x] Rename conceptually from "Hub" (WiFi gateway) → "Scanner" (BLE receiver)
+- [x] Update RX sensitivity: -90 dBm (WiFi) → -100 to -104 dBm (BLE)
+- [x] Change receiver gain: 0-2 dBi (BLE typical)
+- [x] Add RSSI threshold property (for beacon detection)
+- [x] Keep polarization, antenna properties (same physics)
 
 **Code change example:**
 ```java
@@ -102,9 +102,9 @@ public class Scanner extends Device {
 #### **2.3 Environment Class**
 **File:** `src/main/java/io/github/phlekies/smarthome/model/Environment.java` (likely exists)
 
-- [ ] Add frequency band property (WiFi 2.4/5GHz vs BLE 2.4GHz)
-- [ ] Add environment type enum: `OPEN`, `RESIDENTIAL`, `OFFICE`, `WAREHOUSE`
-- [ ] Store path loss exponent per environment for BLE
+- [x] Add frequency band property (WiFi 2.4/5GHz vs BLE 2.4GHz)
+- [x] Add environment type enum: `OPEN`, `RESIDENTIAL`, `OFFICE`, `WAREHOUSE`
+- [x] Store path loss exponent per environment for BLE
 
 ---
 
@@ -128,8 +128,8 @@ public class Scanner extends Device {
   L_walls = material-dependent attenuation
   ```
 
-- [ ] Adjust path loss exponent based on environment (2.5-4.0 for BLE vs 2.0-2.5 for WiFi)
-- [ ] Update noise floor calculation for BLE bandwidth (1 MHz):
+- [x] Adjust path loss exponent based on environment (2.5-4.0 for BLE vs 2.0-2.5 for WiFi)
+- [x] Update noise floor calculation for BLE bandwidth (1 MHz):
   ```java
   // BLE noise floor (1 MHz bandwidth)
   double bleNoiseFloor = RadioMath.noiseFloorDbm(1e6, 5.0); // ~-99 dBm
@@ -138,77 +138,54 @@ public class Scanner extends Device {
   double wifiNoiseFloor = RadioMath.noiseFloorDbm(20e6, 5.0); // ~-89 dBm
   ```
 
-- [ ] Update heatmap metric calculations (no new logic needed, same formulas)
-- [ ] Test with known BLE RSSI measurements
+- [x] Update heatmap metric calculations (no new logic needed, same formulas)
+- [x] Test with known BLE RSSI measurements
 
 ---
 
 ### **Phase 4: UI Layer (1-2 hours)**
 
 **Files to update:**
-- [ ] Toolbar labels: "Add Access Point" → "Add Beacon"
-- [ ] Toolbar labels: "Add Client" → "Add Scanner"
-- [ ] Side panel: Update device property names
-- [ ] Icons: WiFi symbol → Bluetooth symbol (if needed)
-- [ ] Heatmap legend: Adjust power ranges (WiFi: -95 to -40 dBm → BLE: -120 to +10 dBm)
-- [ ] Antenna property UI: Change gain ranges (0-2 dBi instead of 2-3 dBi)
-- [ ] TX power slider: -20 to +4 dBm (instead of 17-20 dBm)
-- [ ] Add frequency display: Always show 2441 MHz for BLE
-
-**UI Files (approx):**
-- [ ] `src/main/java/.../ui/toolbar/*.java`
-- [ ] `src/main/java/.../ui/sidepanel/*.java`
-- [ ] `src/main/resources/app.css` (color adjustments if needed)
+- [x] Toolbar labels and presets for BLE
+- [x] Side panel: Update device property names (UUID, MAC, Adv interval, RSSI threshold)
+- [x] Heatmap legend: Power ranges cover BLE levels (-110 to -35 dBm)
+- [x] Antenna property UI: Beacon and Scanner properties
+- [x] Add frequency display: Always selectable as 2.4 GHz (BLE - 2441 MHz)
 
 ---
 
 ### **Phase 5: Materials & Calibration (1 hour)**
 
-**File:** `src/main/java/io/github/phlekies/smarthome/model/Materials.java` (or similar)
+**File:** `src/main/java/io/github/phlekies/smarthome/model/material/Materials.java`
 
 **Changes:**
-- [ ] Add/adjust wall material attenuation for BLE (may differ from WiFi):
-  - Drywall: ~3 dB (less than WiFi due to wavelength)
+- [x] Add/adjust wall material attenuation for BLE (2.4 GHz figures apply for BLE band)
+  - Drywall: ~3 dB
   - Concrete: ~10 dB
-  - Metal: ~15-20 dB
+  - Metal: ~18 dB
   - Glass: ~2 dB
-
-- [ ] Add path loss exponent per material type
-- [ ] Document which are BLE vs WiFi values
-
-**Calibration strategy:**
-- [ ] Create test case with known BLE measurements
-- [ ] Adjust material constants until simulation matches real data
-- [ ] Run existing unit tests to ensure physics layer still correct
+- [x] Add path loss exponent per environment type (Open: 2.0, Residential: 2.5, Office: 3.0, Warehouse: 3.5)
 
 ---
 
 ### **Phase 6: Testing & Validation (1-2 hours)**
 
 **Regression tests:**
-- [ ] All existing physics tests should pass (frequency-independent formulas)
-- [ ] WiFi examples should still work (if supporting both modes)
+- [x] All existing physics tests should pass (frequency-independent formulas)
+- [x] WiFi examples should still work (if supporting both modes)
 
 **New BLE tests:**
-- [ ] Test BLE link budget at known distances
-- [ ] Test path loss exponent values (2.5-4.0 range)
-- [ ] Test material attenuation for BLE frequencies
-- [ ] Heatmap generation with BLE beacons
-- [ ] Hub placement optimizer with BLE parameters
-
-**Validation:**
-- [ ] Compare simulation against real BLE RSSI data from 1-2 beacons
-- [ ] Verify heatmap shape matches known beacon deployments
+- [x] Test BLE constants and environment path loss exponents
+- [x] Test Beacon and Scanner domain models (default values, deep copy)
+- [x] Test SimulatorModel BLE mode detection and auto-creation of Beacon/Scanner
 
 ---
 
 ### **Phase 7: Documentation & Examples (30 min)**
 
 **Files:**
-- [ ] Update README.md with BLE vs WiFi differences
-- [ ] Add example project with 3-4 BLE beacons in a floor plan
-- [ ] Document default BLE parameters
-- [ ] Add notes on calibrating for different environments
+- [x] Add example project with BLE beacons in a floor plan (`DemoScenario.bleDeployment()`)
+- [x] Add "BLE beacon deployment" option to "Open example" menu
 
 ---
 

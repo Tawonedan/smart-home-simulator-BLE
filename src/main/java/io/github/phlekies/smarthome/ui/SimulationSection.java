@@ -17,8 +17,9 @@ import io.github.phlekies.smarthome.simulation.SimulationSettings;
 final class SimulationSection {
 
     private enum Band {
-        WIFI_2_4("2.4 GHz", Environment.WIFI_2_4_GHZ_MHZ),
-        WIFI_5("5 GHz", Environment.WIFI_5_GHZ_MHZ);
+        WIFI_2_4("2.4 GHz (WiFi)", Environment.WIFI_2_4_GHZ_MHZ),
+        WIFI_5("5 GHz (WiFi)", Environment.WIFI_5_GHZ_MHZ),
+        BLE_2_4("2.4 GHz (BLE)", Environment.BLE_2_4_GHZ_MHZ);
 
         private final String label;
         private final double freqMHz;
@@ -29,6 +30,7 @@ final class SimulationSection {
         }
 
         static Band of(double freqMHz) {
+            if (Math.abs(freqMHz - Environment.BLE_2_4_GHZ_MHZ) < 5.0) return BLE_2_4;
             return freqMHz < 3000 ? WIFI_2_4 : WIFI_5;
         }
 
@@ -56,8 +58,14 @@ final class SimulationSection {
         CheckBox parallel = Ui.checkBox("Parallel computation", settings.isParallelComputation());
 
         bandCombo.setOnAction(e -> {
-            if (bandCombo.getValue().freqMHz != model.environment().getFreqMHz()) {
-                model.environment().setFreqMHz(bandCombo.getValue().freqMHz);
+            Band selected = bandCombo.getValue();
+            if (selected != null && selected.freqMHz != model.environment().getFreqMHz()) {
+                model.environment().setFreqMHz(selected.freqMHz);
+                if (selected == Band.BLE_2_4) {
+                    model.environment().setBandwidthHz(Environment.BLE_BANDWIDTH_HZ);
+                } else if (model.environment().getBandwidthHz() == Environment.BLE_BANDWIDTH_HZ) {
+                    model.environment().setBandwidthHz(20e6);
+                }
                 model.radioChanged();
             }
         });

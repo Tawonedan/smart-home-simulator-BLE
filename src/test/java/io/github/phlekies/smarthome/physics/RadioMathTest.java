@@ -155,4 +155,28 @@ class RadioMathTest {
             assertEquals(expected, RadioMath.angularDistanceDeg(a, b), 1e-9);
         }
     }
+
+    @Nested
+    @DisplayName("BLE and Environment")
+    class BleAndEnvironment {
+
+        @Test
+        void bleConstantsAreDefined() {
+            assertEquals(2441.0, RadioMath.BLE_CENTER_FREQ_MHZ);
+            assertEquals(1e6, RadioMath.BLE_BANDWIDTH_HZ);
+            assertEquals(2400.0, RadioMath.WIFI_CENTER_FREQ_MHZ);
+            assertEquals(20e6, RadioMath.WIFI_BANDWIDTH_HZ);
+        }
+
+        @Test
+        void environmentPathLossExponentMapsExpectedValues() {
+            assertEquals(2.0, RadioMath.getPathLossExponent("open"));
+            assertEquals(2.0, RadioMath.getPathLossExponent("free space"));
+            assertEquals(2.5, RadioMath.getPathLossExponent("residential"));
+            assertEquals(3.0, RadioMath.getPathLossExponent("office"));
+            assertEquals(3.5, RadioMath.getPathLossExponent("warehouse"));
+            assertEquals(2.0, RadioMath.getPathLossExponent(null));
+            assertEquals(2.5, RadioMath.getPathLossExponent("unknown"));
+        }
+    }
 }

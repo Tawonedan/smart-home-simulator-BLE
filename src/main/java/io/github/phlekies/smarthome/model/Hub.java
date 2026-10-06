@@ -10,7 +10,12 @@ public class Hub extends Device {
 
     /** Creates a hub with an isotropic 0 dB antenna. */
     public Hub(String id, String name, int x, int y) {
+        this(id, name, x, y, 0.0);
+    }
+
+    public Hub(String id, String name, int x, int y, double receiverGainDb) {
         super(id, name, x, y);
+        this.receiverGainDb = receiverGainDb;
     }
 
     /** Deep copy. */

@@ -15,7 +15,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import io.github.phlekies.smarthome.app.SimulatorModel.Change;
+import io.github.phlekies.smarthome.model.Beacon;
+import io.github.phlekies.smarthome.model.Environment;
 import io.github.phlekies.smarthome.model.Hub;
+import io.github.phlekies.smarthome.model.Scanner;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.Wall;
 import io.github.phlekies.smarthome.model.material.Materials;
@@ -309,6 +312,34 @@ class SimulatorModelTest {
             assertEquals(45.0, model.heatmapSettings().getReceiverPolarizationDeg());
             assertEquals(0.0, model.heatmapSettings().getReceiverGainDb());
             assertEquals(6.0, model.receiverSettings().getReceiverGainDb());
+        }
+    }
+
+    @Nested
+    @DisplayName("BLE mode")
+    class BleSupport {
+
+        @Test
+        void bleModeSwitchesAutomaticallyAndCreatesBeacons() {
+            model.environment().setFreqMHz(Environment.BLE_2_4_GHZ_MHZ);
+            model.environment().setBandwidthHz(Environment.BLE_BANDWIDTH_HZ);
+            assertTrue(model.isBleMode());
+
+            Sensor sensor = model.addSensor(10, 15);
+            assertTrue(sensor instanceof Beacon);
+            assertEquals("B1", sensor.getId());
+
+            Hub hub = model.placeHub(20, 25);
+            assertTrue(hub instanceof Scanner);
+        }
+
+        @Test
+        void addingBeaconDirectlyWorksRegardlessOfMode() {
+            Beacon beacon = model.addBeacon(8, 12);
+            assertEquals("B1", beacon.getId());
+            assertEquals(Beacon.DEFAULT_BLE_TX_POWER_DBM, beacon.getTxPowerDbm());
+            Scanner scanner = model.placeScanner(14, 18);
+            assertEquals("Scanner", scanner.getName());
         }
     }
 }

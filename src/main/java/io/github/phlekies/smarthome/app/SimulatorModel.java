@@ -9,9 +9,11 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import io.github.phlekies.smarthome.model.Beacon;
 import io.github.phlekies.smarthome.model.Device;
 import io.github.phlekies.smarthome.model.Environment;
 import io.github.phlekies.smarthome.model.Hub;
+import io.github.phlekies.smarthome.model.Scanner;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.Wall;
 import io.github.phlekies.smarthome.model.material.Material;
@@ -260,11 +262,24 @@ public final class SimulatorModel {
      */
     public Sensor addSensor(int x, int y) {
         int number = nextSensorNumber();
-        Sensor sensor = new Sensor("S" + number, "Sensor " + number, clampX(x), clampY(y));
-        sensor.setTxPowerDbm(NEW_SENSOR_TX_POWER_DBM);
+        Sensor sensor;
+        if (isBleMode()) {
+            sensor = new Beacon("B" + number, "Beacon " + number, clampX(x), clampY(y));
+        } else {
+            sensor = new Sensor("S" + number, "Sensor " + number, clampX(x), clampY(y));
+            sensor.setTxPowerDbm(NEW_SENSOR_TX_POWER_DBM);
+        }
         sensors.add(sensor);
         fire(Change.DEVICES);
         return sensor;
+    }
+
+    public Beacon addBeacon(int x, int y) {
+        int number = nextSensorNumber();
+        Beacon beacon = new Beacon("B" + number, "Beacon " + number, clampX(x), clampY(y));
+        sensors.add(beacon);
+        fire(Change.DEVICES);
+        return beacon;
     }
 
     /** Removes a sensor from the deployment. */
@@ -282,12 +297,29 @@ public final class SimulatorModel {
     /** Places the hub, or moves it keeping its receiver configuration. */
     public Hub placeHub(int x, int y) {
         if (hub == null) {
-            hub = new Hub(HUB_ID, "Hub", clampX(x), clampY(y));
+            hub = isBleMode()
+                    ? new Scanner(HUB_ID, "Scanner", clampX(x), clampY(y))
+                    : new Hub(HUB_ID, "Hub", clampX(x), clampY(y));
         } else {
             hub.moveTo(clampX(x), clampY(y));
         }
         fire(Change.DEVICES);
         return hub;
+    }
+
+    public Scanner placeScanner(int x, int y) {
+        if (hub == null || !(hub instanceof Scanner)) {
+            hub = new Scanner(HUB_ID, "Scanner", clampX(x), clampY(y));
+        } else {
+            hub.moveTo(clampX(x), clampY(y));
+        }
+        fire(Change.DEVICES);
+        return (Scanner) hub;
+    }
+
+    public boolean isBleMode() {
+        return Math.abs(environment.getFreqMHz() - Environment.BLE_2_4_GHZ_MHZ) < 5.0
+                || environment.getBandwidthHz() == Environment.BLE_BANDWIDTH_HZ;
     }
 
     /** Removes the hub. */
@@ -319,7 +351,7 @@ public final class SimulatorModel {
         int next = 1;
         for (Sensor sensor : sensors) {
             String id = sensor.getId();
-            if (id.matches("S\\d+")) {
+            if (id.matches("[SB]\\d+")) {
                 next = Math.max(next, Integer.parseInt(id.substring(1)) + 1);
             }
         }

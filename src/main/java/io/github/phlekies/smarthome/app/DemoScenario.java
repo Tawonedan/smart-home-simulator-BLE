@@ -3,8 +3,10 @@ package io.github.phlekies.smarthome.app;
 import java.util.List;
 
 import io.github.phlekies.smarthome.model.AntennaType;
+import io.github.phlekies.smarthome.model.Beacon;
 import io.github.phlekies.smarthome.model.Environment;
 import io.github.phlekies.smarthome.model.Hub;
+import io.github.phlekies.smarthome.model.Scanner;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.template.FloorPlanTemplate;
 import io.github.phlekies.smarthome.simulation.SimulationSettings;
@@ -78,4 +80,31 @@ public final class DemoScenario {
         return new ProjectState(template, env, new SimulationSettings(), sensors, new Hub("H1", "Hub", 6, 6));
     }
 
+    public static ProjectState bleDeployment() {
+        FloorPlanTemplate template = FloorPlanTemplate.TWO_BEDROOM_APARTMENT;
+        Environment env = new Environment();
+        env.setWalls(template.walls());
+        env.setFreqMHz(Environment.BLE_2_4_GHZ_MHZ);
+        env.setBandwidthHz(Environment.BLE_BANDWIDTH_HZ);
+
+        SimulationSettings settings = new SimulationSettings();
+        settings.setReceiverSensitivityDbm(Scanner.DEFAULT_RX_SENSITIVITY_DBM);
+        settings.setLogDistanceExponent(2.5);
+
+        List<Sensor> beacons = List.of(
+                beacon("B1", "Asset Beacon (Living)", 7, 12, -4.0),
+                beacon("B2", "Temp Beacon (Kitchen)", 24, 5, -6.0),
+                beacon("B3", "Door Beacon", 40, 3, -6.0),
+                beacon("B4", "Window Beacon", 4, 26, -6.0),
+                beacon("B5", "Wearable Tag", 20, 25, 0.0),
+                beacon("B6", "Desk Beacon", 39, 26, -4.0));
+
+        return new ProjectState(template, env, settings, beacons, new Scanner("S1", "BLE Scanner", 20, 15));
+    }
+
+    private static Beacon beacon(String id, String name, int x, int y, double txPowerDbm) {
+        Beacon b = new Beacon(id, name, x, y);
+        b.setTxPowerDbm(txPowerDbm);
+        return b;
+    }
 }

@@ -33,7 +33,8 @@ final class AppMenuBar {
         examples.getItems().addAll(
                 item("Smart apartment", null, () -> projects.openExample("Smart apartment", DemoScenario.smartApartment())),
                 item("Office floor", null, () -> projects.openExample("Office floor", DemoScenario.officeFloor())),
-                item("Warehouse", null, () -> projects.openExample("Warehouse", DemoScenario.warehouse())));
+                item("Warehouse", null, () -> projects.openExample("Warehouse", DemoScenario.warehouse())),
+                item("BLE beacon deployment", null, () -> projects.openExample("BLE beacon deployment", DemoScenario.bleDeployment())));
 
         Menu file = new Menu("File", null,
                 item("New project", shortcut(KeyCode.N), projects::newProject),

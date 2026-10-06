@@ -22,7 +22,12 @@ public class Sensor extends Device {
 
     /** Creates an omnidirectional sensor transmitting at {@link #DEFAULT_TX_POWER_DBM}. */
     public Sensor(String id, String name, int x, int y) {
+        this(id, name, x, y, DEFAULT_TX_POWER_DBM);
+    }
+
+    public Sensor(String id, String name, int x, int y, double txPowerDbm) {
         super(id, name, x, y);
+        this.txPowerDbm = txPowerDbm;
     }
 
     /** Deep copy, used to hand an immutable snapshot to background computations. */

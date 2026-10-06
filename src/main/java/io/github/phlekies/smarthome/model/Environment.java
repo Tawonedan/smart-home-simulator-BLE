@@ -15,10 +15,13 @@ public class Environment {
 
     public static final double WIFI_2_4_GHZ_MHZ = 2400.0;
     public static final double WIFI_5_GHZ_MHZ = 5200.0;
+    public static final double BLE_2_4_GHZ_MHZ = RadioMath.BLE_CENTER_FREQ_MHZ;
+    public static final double BLE_BANDWIDTH_HZ = RadioMath.BLE_BANDWIDTH_HZ;
 
     private double freqMHz = WIFI_2_4_GHZ_MHZ;
     private double bandwidthHz = 20e6;
     private double noiseFigureDb = 7.0;
+    private EnvironmentType environmentType = EnvironmentType.RESIDENTIAL;
     /** Optional extra attenuation per metre of path (furniture, people...). */
     private double alphaDbPerMeter = 0.0;
     /** Optional lumped system gain/margin added to every link. */
@@ -40,6 +43,7 @@ public class Environment {
         freqMHz = other.freqMHz;
         bandwidthHz = other.bandwidthHz;
         noiseFigureDb = other.noiseFigureDb;
+        environmentType = other.environmentType;
         alphaDbPerMeter = other.alphaDbPerMeter;
         systemGainDb = other.systemGainDb;
         setWalls(other.walls);
@@ -118,5 +122,13 @@ public class Environment {
 
     public void setSystemGainDb(double systemGainDb) {
         this.systemGainDb = systemGainDb;
+    }
+
+    public EnvironmentType getEnvironmentType() {
+        return environmentType;
+    }
+
+    public void setEnvironmentType(EnvironmentType environmentType) {
+        this.environmentType = (environmentType == null) ? EnvironmentType.RESIDENTIAL : environmentType;
     }
 }
