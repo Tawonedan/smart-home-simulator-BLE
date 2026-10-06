@@ -56,7 +56,7 @@ final class DevicesSection {
     }
 
     VBox build() {
-        sensorCombo.setPromptText("Select a sensor");
+        sensorCombo.setPromptText("Select a beacon / sensor");
         sensorCombo.valueProperty().addListener((obs, old, sensor) -> {
             if (!syncing && sensor != null) {
                 state.selectedDevice.set(sensor);
@@ -66,10 +66,10 @@ final class DevicesSection {
         GridPane addForm = Ui.formGrid();
         Ui.addRow(addForm, "Position x, y (m)", Ui.pair(xField, yField));
         GridPane addButtons = Ui.buttonGrid();
-        addButtons.add(Ui.primaryButton("Add sensor", e -> addSensorAtFields()), 0, 0);
-        addButtons.add(Ui.secondaryButton("Place hub", e -> placeHubAtFields()), 1, 0);
-        VBox addSection = Ui.section("Add a device", addForm, addButtons,
-                Ui.hint("Or use the Sensor and Hub tools of the toolbar and click on the plan. Drag devices to move them."));
+        addButtons.add(Ui.primaryButton("Add beacon", e -> addSensorAtFields()), 0, 0);
+        addButtons.add(Ui.secondaryButton("Place scanner", e -> placeHubAtFields()), 1, 0);
+        VBox addSection = Ui.section("Add BLE device", addForm, addButtons,
+                Ui.hint("Or use the Beacon and Scanner tools from the toolbar and click on the plan. Drag devices to move them."));
 
         GridPane sensorForm = Ui.formGrid();
         Ui.addRow(sensorForm, "Antenna", antennaCombo);
@@ -91,7 +91,7 @@ final class DevicesSection {
         hubEditor.getChildren().add(hubForm);
 
         GridPane nameForm = Ui.formGrid();
-        Ui.addRow(nameForm, "Sensor", sensorCombo);
+        Ui.addRow(nameForm, "Beacon / Sensor", sensorCombo);
         Ui.addRow(nameForm, "Name", nameField);
 
         GridPane selectionButtons = Ui.buttonGrid();
@@ -138,8 +138,17 @@ final class DevicesSection {
         nameField.setDisable(device == null);
 
         if (device != null) {
-            selectionTitle.setText((isHub ? "Hub" : "Sensor " + device.getId()) + " at (" + device.getX() + ", "
-                    + device.getY() + ") m");
+            String role;
+            if (device instanceof Scanner) {
+                role = "BLE Scanner";
+            } else if (device instanceof Hub) {
+                role = "Gateway Hub";
+            } else if (device instanceof Beacon) {
+                role = "BLE Beacon " + device.getId();
+            } else {
+                role = "Sensor " + device.getId();
+            }
+            selectionTitle.setText(role + " at (" + device.getX() + ", " + device.getY() + ") m");
             nameField.setText(device.getName());
             xField.setText(Integer.toString(device.getX()));
             yField.setText(Integer.toString(device.getY()));

@@ -52,6 +52,7 @@ import io.github.phlekies.smarthome.app.SimulatorModel;
 import io.github.phlekies.smarthome.model.AntennaType;
 import io.github.phlekies.smarthome.model.Device;
 import io.github.phlekies.smarthome.model.Hub;
+import io.github.phlekies.smarthome.model.Scanner;
 import io.github.phlekies.smarthome.model.Sensor;
 import io.github.phlekies.smarthome.model.Wall;
 
@@ -250,9 +251,14 @@ final class PlanView extends Pane {
             box.setStroke(hub == selected ? palette.selection() : palette.hub().darker());
             box.setStrokeWidth(hub == selected ? 3 : 1.5);
             Circle core = new Circle(cx, cy, 3, Color.WHITE);
+            String hubInfo = hub instanceof Scanner scanner
+                    ? String.format("%s [BLE Scanner] at (%d, %d)%nRx gain %.1f dB, Sens %.0f dBm, Thresh %.0f dBm%nDrag to move",
+                            scanner.getName(), scanner.getX(), scanner.getY(), scanner.getReceiverGainDb(),
+                            scanner.getRxSensitivityDbm(), scanner.getRssiThresholdDbm())
+                    : String.format("%s at (%d, %d)%nRx gain %.1f dB, polarization %.0f°%nDrag to move",
+                            hub.getName(), hub.getX(), hub.getY(), hub.getReceiverGainDb(), hub.getPolarizationDeg());
             Group node = new Group(box, core, deviceLabel(hub.getName(), cx, cy));
-            Tooltip.install(box, new Tooltip(String.format("%s at (%d, %d)%nRx gain %.1f dB, polarization %.0f°%nDrag to move",
-                    hub.getName(), hub.getX(), hub.getY(), hub.getReceiverGainDb(), hub.getPolarizationDeg())));
+            Tooltip.install(box, new Tooltip(hubInfo));
             makeInteractive(node, hub, null);
             hubNode = box;
             devicesLayer.getChildren().add(node);

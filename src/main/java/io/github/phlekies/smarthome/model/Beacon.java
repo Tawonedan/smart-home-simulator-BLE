@@ -79,4 +79,11 @@ public class Beacon extends Sensor {
     public void setCalibratedRssiAtOneMeterDbm(double calibratedRssiAtOneMeterDbm) {
         this.calibratedRssiAtOneMeterDbm = calibratedRssiAtOneMeterDbm;
     }
+
+    @Override
+    public String describe() {
+        return String.format(java.util.Locale.US,
+                "%s [BLE Beacon] at (%d, %d): Tx %.1f dBm, Adv %.0f ms, RSSI@1m %.0f dBm",
+                getName(), getX(), getY(), getTxPowerDbm(), advertisingIntervalMs, calibratedRssiAtOneMeterDbm);
+    }
 }

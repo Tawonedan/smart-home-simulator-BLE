@@ -5,8 +5,8 @@ enum EditorTool {
     SELECT("Select", "Click a wall to select it and edit its material or thickness."),
     WALL("Draw wall", "Click two points to draw a straight wall."),
     ROOM("Draw room", "Click two opposite corners to create a rectangular room."),
-    SENSOR("Place sensor", "Click on the plan to place a sensor."),
-    HUB("Place hub", "Click on the plan to place or move the hub."),
+    SENSOR("Place beacon", "Click on the plan to place a BLE beacon."),
+    HUB("Place scanner", "Click on the plan to place or move the BLE scanner."),
     DELETE("Erase wall", "Click a wall to delete it.");
 
     private final String label;

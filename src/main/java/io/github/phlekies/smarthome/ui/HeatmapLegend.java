@@ -47,12 +47,16 @@ final class HeatmapLegend extends VBox {
         drawBar();
     }
 
-    void showMetric(MapMetric metric) {
+    void showMetric(MapMetric metric, boolean bleMode) {
         HeatmapRenderer.Scale scale = HeatmapRenderer.scaleFor(metric);
-        title.setText(metric.toString());
+        title.setText(bleMode ? metric.toString() + " (BLE)" : metric.toString());
         worst.setText(format(scale, scale.valueAt(0.0)));
         middle.setText(format(scale, scale.valueAt(0.5)));
         best.setText(format(scale, scale.valueAt(1.0)));
+    }
+
+    void showMetric(MapMetric metric) {
+        showMetric(metric, false);
     }
 
     void showCoverage(CoverageStats stats) {

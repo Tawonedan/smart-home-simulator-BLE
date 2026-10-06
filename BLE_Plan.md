@@ -148,9 +148,11 @@ public class Scanner extends Device {
 **Files to update:**
 - [x] Toolbar labels and presets for BLE
 - [x] Side panel: Update device property names (UUID, MAC, Adv interval, RSSI threshold)
-- [x] Heatmap legend: Power ranges cover BLE levels (-110 to -35 dBm)
+- [x] Heatmap legend: Power ranges cover BLE levels (-110 to -35 dBm) and show BLE indicator
 - [x] Antenna property UI: Beacon and Scanner properties
 - [x] Add frequency display: Always selectable as 2.4 GHz (BLE - 2441 MHz)
+- [x] Status bar mode indicator badge (BLE Mode vs WiFi)
+- [x] Default demo scenario initialized with BLE frequency and devices
 
 ---
 

@@ -52,9 +52,9 @@ public final class SimulatorApp extends Application {
         simulation = new SimulationController(model, state, planView, heatmaps, stage);
 
         HeatmapLegend legend = new HeatmapLegend();
-        legend.showMetric(model.settings().getMapMetric());
+        legend.showMetric(model.settings().getMapMetric(), model.isBleMode());
         legend.visibleProperty().bind(state.heatmapVisible);
-        model.addListener(change -> legend.showMetric(model.settings().getMapMetric()));
+        model.addListener(change -> legend.showMetric(model.settings().getMapMetric(), model.isBleMode()));
         state.coverage.addListener((obs, old, stats) -> legend.showCoverage(stats));
         StackPane plan = new StackPane(planView);
         plan.getStyleClass().add("plan-stack");
@@ -69,7 +69,7 @@ public final class SimulatorApp extends Application {
                 EditorToolBar.build(model, state, simulation, viewport)));
         root.setCenter(viewport);
         root.setRight(ControlPanel.build(model, state, editor, simulation, projects));
-        root.setBottom(statusBar(state, heatmaps, simulation));
+        root.setBottom(statusBar(model, state, heatmaps, simulation));
 
         Scene scene = new Scene(root);
         scene.getStylesheets().add(SimulatorApp.class.getResource("app.css").toExternalForm());
@@ -96,7 +96,7 @@ public final class SimulatorApp extends Application {
         setupAspectRatioLock(stage);
         javafx.application.Platform.runLater(viewport::fit);
 
-        state.status.set("Smart apartment demo loaded. Drag the devices, or press Optimise hub.");
+        state.status.set("Smart apartment BLE demo loaded. Drag the devices, or press Optimise hub.");
         state.heatmapVisible.set(true);
     }
 
@@ -113,12 +113,30 @@ public final class SimulatorApp extends Application {
                 : new PrimerLight().getUserAgentStylesheet());
     }
 
-    private static HBox statusBar(UiState state, HeatmapService heatmaps, SimulationController simulation) {
+    private static HBox statusBar(SimulatorModel model, UiState state, HeatmapService heatmaps, SimulationController simulation) {
         Label status = new Label();
         status.textProperty().bind(state.status);
         Label pointer = new Label();
         pointer.textProperty().bind(state.pointer);
         pointer.getStyleClass().add("status-pointer");
+
+        Label modeBadge = new Label();
+        modeBadge.getStyleClass().add("status-badge");
+        Runnable updateBadge = () -> {
+            if (model.isBleMode()) {
+                modeBadge.setText("BLE Mode (2.4 GHz | 1 MHz)");
+                modeBadge.setStyle("-fx-background-color: #0284c7; -fx-text-fill: white; -fx-padding: 2 10 2 10; -fx-background-radius: 12; -fx-font-weight: bold; -fx-font-size: 11px;");
+            } else {
+                modeBadge.setText(String.format("WiFi (%.0f MHz | %.0f MHz)", model.environment().getFreqMHz(), model.environment().getBandwidthHz() / 1e6));
+                modeBadge.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-padding: 2 10 2 10; -fx-background-radius: 12; -fx-font-size: 11px;");
+            }
+        };
+        model.addListener(change -> {
+            if (change == SimulatorModel.Change.RADIO) {
+                updateBadge.run();
+            }
+        });
+        updateBadge.run();
 
         ProgressBar progress = new ProgressBar();
         progress.progressProperty().bind(heatmaps.progressProperty());
@@ -137,7 +155,7 @@ public final class SimulatorApp extends Application {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox bar = new HBox(12, status, spacer, optimising, progressLabel, progress, pointer);
+        HBox bar = new HBox(12, modeBadge, status, spacer, optimising, progressLabel, progress, pointer);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.getStyleClass().add("status-bar");
         return bar;

@@ -58,7 +58,7 @@ public final class CoverageReport {
                 <body><main>
                 """);
 
-        html.append("<h1>Wi-Fi coverage report</h1>\n");
+        html.append(model.isBleMode() ? "<h1>BLE coverage report</h1>\n" : "<h1>Wi-Fi coverage report</h1>\n");
         html.append("<p class=\"muted\">").append(escape(model.scenarioName())).append(" &middot; ")
                 .append(escape(model.scenarioDescription())).append("<br>Generated on ")
                 .append(DATE.format(generatedAt)).append("</p>\n");
@@ -70,7 +70,7 @@ public final class CoverageReport {
             kpi(html, "Signal in 90 % of the area", "≥ " + Format.dbm(coverage.signalP10Dbm()));
             kpi(html, "Median SINR", Format.db(coverage.medianSinrDb()));
         }
-        kpi(html, "Sensors", Integer.toString(model.sensors().size()));
+        kpi(html, model.isBleMode() ? "Beacons" : "Sensors", Integer.toString(model.sensors().size()));
         kpi(html, "Walls", Integer.toString(model.walls().size()));
         kpi(html, "Band", Format.frequencyMHz(env.getFreqMHz()));
         kpi(html, "Noise floor", Format.dbm(env.noiseFloorDbm()));
@@ -81,16 +81,18 @@ public final class CoverageReport {
                     .append(Base64.getEncoder().encodeToString(planPng)).append("\">\n");
         }
 
-        html.append("<h2>Sensor links to the hub</h2>\n");
+        html.append(model.isBleMode() ? "<h2>Beacon links to the scanner</h2>\n" : "<h2>Sensor links to the hub</h2>\n");
         Optional<Hub> hub = model.hub();
         if (hub.isEmpty()) {
             html.append("<p class=\"muted\">No hub has been placed.</p>\n");
         } else {
-            html.append("<p class=\"muted\">Hub at (").append(hub.get().getX()).append(", ").append(hub.get().getY())
+            html.append("<p class=\"muted\">").append(model.isBleMode() ? "Scanner" : "Hub").append(" at (")
+                    .append(hub.get().getX()).append(", ").append(hub.get().getY())
                     .append(") m. Receiver sensitivity ").append(Format.dbm(settings.getReceiverSensitivityDbm()))
                     .append(".</p>\n");
-            html.append("<table>\n<tr><th>Sensor</th><th>Position</th><th>Antenna</th><th>Distance</th>"
-                    + "<th>Received power</th><th>SNR</th><th>Link margin</th><th>Status</th></tr>\n");
+            html.append("<table>\n<tr><th>").append(model.isBleMode() ? "Beacon" : "Sensor")
+                    .append("</th><th>Position</th><th>Antenna</th><th>Distance</th>")
+                    .append("<th>Received power</th><th>SNR</th><th>Link margin</th><th>Status</th></tr>\n");
             for (Sensor sensor : model.sensors()) {
                 CellResult link = model.sensorLink(sensor).orElseThrow();
                 boolean reached = link.hasEnergy();

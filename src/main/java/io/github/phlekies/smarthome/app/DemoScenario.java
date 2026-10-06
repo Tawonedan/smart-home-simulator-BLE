@@ -25,6 +25,8 @@ public final class DemoScenario {
         FloorPlanTemplate template = FloorPlanTemplate.TWO_BEDROOM_APARTMENT;
         Environment env = new Environment();
         env.setWalls(template.walls());
+        env.setFreqMHz(Environment.BLE_2_4_GHZ_MHZ);
+        env.setBandwidthHz(Environment.BLE_BANDWIDTH_HZ);
 
         // Mains-powered devices transmit more than the battery ones (Zigbee/BLE-class radios at ~0 dBm).
         Sensor camera = sensor("S6", "Security camera", 39, 26, 10.0);
@@ -41,11 +43,11 @@ public final class DemoScenario {
                 sensor("S5", "Smart plug", 20, 25, 3.0),
                 camera);
 
-        return new ProjectState(template, env, new SimulationSettings(), sensors, new Hub("H1", "Hub", 5, 4));
+        return new ProjectState(template, env, new SimulationSettings(), sensors, new Scanner("H1", "Hub", 5, 4));
     }
 
     private static Sensor sensor(String id, String name, int x, int y, double txPowerDbm) {
-        Sensor sensor = new Sensor(id, name, x, y);
+        Beacon sensor = new Beacon(id, name, x, y);
         sensor.setTxPowerDbm(txPowerDbm);
         return sensor;
     }

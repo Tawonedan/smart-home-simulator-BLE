@@ -1,11 +1,15 @@
 package io.github.phlekies.smarthome.ui;
 
+import java.util.List;
+
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 
 import io.github.phlekies.smarthome.app.SimulatorModel;
 import io.github.phlekies.smarthome.model.Environment;
+import io.github.phlekies.smarthome.model.EnvironmentType;
 import io.github.phlekies.smarthome.simulation.SimulationSettings;
 import io.github.phlekies.smarthome.util.Format;
 
@@ -21,6 +25,7 @@ final class RadioSection {
     private final TextField sensitivityField = Ui.textField("");
     private final TextField bandwidthField = Ui.textField("");
     private final TextField noiseFigureField = Ui.textField("");
+    private final ComboBox<EnvironmentType> envTypeCombo = Ui.comboBox(List.of(EnvironmentType.values()), EnvironmentType.RESIDENTIAL);
 
     RadioSection(SimulatorModel model, UiState state) {
         this.model = model;
@@ -28,7 +33,15 @@ final class RadioSection {
     }
 
     VBox build() {
+        envTypeCombo.setOnAction(e -> {
+            EnvironmentType selected = envTypeCombo.getValue();
+            if (selected != null) {
+                exponentField.setText(Format.number(selected.getDefaultPathLossExponent(), 2));
+            }
+        });
+
         GridPane form = Ui.formGrid();
+        Ui.addRow(form, "Environment type", envTypeCombo);
         Ui.addRow(form, "Path-loss exponent n", exponentField);
         Ui.addRow(form, "Rician K-factor (dB)", kFactorField);
         Ui.addRow(form, "Path culling (dBm)", cullingField);
@@ -49,6 +62,7 @@ final class RadioSection {
     private void refresh() {
         Environment env = model.environment();
         SimulationSettings settings = model.settings();
+        envTypeCombo.setValue(env.getEnvironmentType());
         exponentField.setText(Format.number(settings.getLogDistanceExponent(), 2));
         kFactorField.setText(Format.number(settings.getRicianKFactorDb(), 1));
         cullingField.setText(Format.number(settings.getCullingThresholdDbm(), 0));
@@ -60,6 +74,7 @@ final class RadioSection {
     private void apply() {
         Environment env = model.environment();
         SimulationSettings settings = model.settings();
+        env.setEnvironmentType(envTypeCombo.getValue());
         settings.setLogDistanceExponent(Ui.parseDouble(exponentField.getText(), settings.getLogDistanceExponent()));
         settings.setRicianKFactorDb(Ui.parseDouble(kFactorField.getText(), settings.getRicianKFactorDb()));
         settings.setCullingThresholdDbm(Ui.parseDouble(cullingField.getText(), settings.getCullingThresholdDbm()));
