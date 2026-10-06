@@ -26,6 +26,9 @@ import io.github.phlekies.smarthome.app.SimulatorModel;
 /** JavaFX entry point: wires the model, the plan view, the editor, the toolbar and the side panel. */
 public final class SimulatorApp extends Application {
 
+    private static final double ASPECT_RATIO = 16.0 / 9.0;
+    private boolean adjustingSize;
+
     // Package-private so the UI tests can drive and inspect a running application.
     SimulatorModel model;
     UiState state;
@@ -56,7 +59,6 @@ public final class SimulatorApp extends Application {
         StackPane plan = new StackPane(planView);
         plan.getStyleClass().add("plan-stack");
         viewport = new PlanViewport(plan, legend);
-        viewport.setPreferredViewport(PlanCoordinates.VIEW_WIDTH_PX + 24, PlanCoordinates.VIEW_HEIGHT_PX + 24);
 
         ProjectController projects = new ProjectController(model, state, stage, getHostServices(),
                 () -> Snapshots.planWithOverlay(plan, legend));
@@ -75,11 +77,24 @@ public final class SimulatorApp extends Application {
         for (int size : new int[] { 16, 32, 48, 64, 128, 256 }) {
             stage.getIcons().add(new Image(SimulatorApp.class.getResourceAsStream("icon-" + size + ".png")));
         }
-        stage.setMinWidth(900);
-        stage.setMinHeight(600);
-        stage.sizeToScene();
-        fitToScreen(stage);
+        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+        double minWidth = Math.min(960.0, screen.getWidth());
+        double minHeight = minWidth / ASPECT_RATIO;
+        double targetWidth = Math.min(1280.0, screen.getWidth() * 0.88);
+        double targetHeight = targetWidth / ASPECT_RATIO;
+        if (targetHeight > screen.getHeight() * 0.88) {
+            targetHeight = screen.getHeight() * 0.88;
+            targetWidth = targetHeight * ASPECT_RATIO;
+        }
+
+        stage.setMinWidth(minWidth);
+        stage.setMinHeight(minHeight);
+        stage.setWidth(targetWidth);
+        stage.setHeight(targetHeight);
+        stage.centerOnScreen();
         stage.show();
+        setupAspectRatioLock(stage);
+        javafx.application.Platform.runLater(viewport::fit);
 
         state.status.set("Smart apartment demo loaded. Drag the devices, or press Optimise hub.");
         state.heatmapVisible.set(true);
@@ -128,11 +143,33 @@ public final class SimulatorApp extends Application {
         return bar;
     }
 
-    /** Never open a window larger than the visible area of the primary screen. */
-    private static void fitToScreen(Stage stage) {
-        Rectangle2D screen = Screen.getPrimary().getVisualBounds();
-        if (stage.getWidth() > screen.getWidth()) stage.setWidth(screen.getWidth());
-        if (stage.getHeight() > screen.getHeight()) stage.setHeight(screen.getHeight());
-        stage.centerOnScreen();
+    private void setupAspectRatioLock(Stage stage) {
+        stage.widthProperty().addListener((obs, oldVal, newVal) -> enforceAspectRatio(stage, true));
+        stage.heightProperty().addListener((obs, oldVal, newVal) -> enforceAspectRatio(stage, false));
+    }
+
+    private void enforceAspectRatio(Stage stage, boolean fromWidth) {
+        if (adjustingSize || stage.isMaximized() || stage.isFullScreen() || stage.isIconified()) {
+            return;
+        }
+        double w = stage.getWidth();
+        double h = stage.getHeight();
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        double currentRatio = w / h;
+        if (Math.abs(currentRatio - ASPECT_RATIO) < 0.005) {
+            return;
+        }
+        adjustingSize = true;
+        try {
+            if (fromWidth) {
+                stage.setHeight(w / ASPECT_RATIO);
+            } else {
+                stage.setWidth(h * ASPECT_RATIO);
+            }
+        } finally {
+            adjustingSize = false;
+        }
     }
 }
