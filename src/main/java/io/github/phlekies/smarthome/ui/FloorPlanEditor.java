@@ -1,8 +1,6 @@
 package io.github.phlekies.smarthome.ui;
 
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.HEIGHT_METERS;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.PIXELS_PER_METER;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.WIDTH_METERS;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersY;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toPixelX;
@@ -114,8 +112,8 @@ final class FloorPlanEditor {
             return;
         }
         state.pointer.set(String.format(Locale.US, "x %.1f m   y %.1f m", toMetersX(e.getX()), toMetersY(e.getY())));
-        hoverX = snap(toMetersX(e.getX()), WIDTH_METERS);
-        hoverY = snap(toMetersY(e.getY()), HEIGHT_METERS);
+        hoverX = snap(toMetersX(e.getX()), PlanCoordinates.widthMeters());
+        hoverY = snap(toMetersY(e.getY()), PlanCoordinates.heightMeters());
         refreshOverlay();
         probe.show(toMetersX(e.getX()), toMetersY(e.getY()), findWallNear(e.getX(), e.getY()));
     }
@@ -124,8 +122,8 @@ final class FloorPlanEditor {
         if (!PlanCoordinates.isInsidePlan(e.getX(), e.getY())) {
             return;
         }
-        double x = snap(toMetersX(e.getX()), WIDTH_METERS);
-        double y = snap(toMetersY(e.getY()), HEIGHT_METERS);
+        double x = snap(toMetersX(e.getX()), PlanCoordinates.widthMeters());
+        double y = snap(toMetersY(e.getY()), PlanCoordinates.heightMeters());
 
         if (e.getButton() == MouseButton.SECONDARY) {
             Wall wall = findWallNear(e.getX(), e.getY());

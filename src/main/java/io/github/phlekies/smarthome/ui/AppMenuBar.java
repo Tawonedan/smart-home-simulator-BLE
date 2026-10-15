@@ -66,7 +66,9 @@ final class AppMenuBar {
                 item("Cancel drawing", new KeyCodeCombination(KeyCode.ESCAPE), () -> {
                     editor.cancelDraft();
                     state.tool.set(EditorTool.SELECT);
-                }));
+                }),
+                new SeparatorMenuItem(),
+                item("Canvas size...", shortcut(KeyCode.K), () -> CanvasSizeDialog.show(model, stage)));
 
         CheckMenuItem heatmap = new CheckMenuItem("Coverage heatmap");
         heatmap.setAccelerator(shortcut(KeyCode.H));
@@ -82,7 +84,19 @@ final class AppMenuBar {
                 item("Zoom out", shortcut(KeyCode.MINUS), viewport::zoomOut),
                 item("Fit to window", shortcut(KeyCode.DIGIT0), viewport::fit),
                 item("Actual size", null, viewport::actualSize),
+                new SeparatorMenuItem(),
+                item("Canvas size...", null, () -> CanvasSizeDialog.show(model, stage)),
                 new SeparatorMenuItem(), dark);
+
+        Menu canvas = new Menu("Canvas", null,
+                item("Canvas size...", shortcut(KeyCode.K), () -> CanvasSizeDialog.show(model, stage)),
+                new SeparatorMenuItem(),
+                item("50 × 40 m (Default)", null, () -> model.setPlanDimensions(50, 40)),
+                item("60 × 40 m", null, () -> model.setPlanDimensions(60, 40)),
+                item("80 × 60 m", null, () -> model.setPlanDimensions(80, 60)),
+                item("100 × 80 m", null, () -> model.setPlanDimensions(100, 80)),
+                item("120 × 90 m", null, () -> model.setPlanDimensions(120, 90)),
+                item("150 × 100 m", null, () -> model.setPlanDimensions(150, 100)));
 
         Menu simulationMenu = new Menu("Simulation", null,
                 item("Optimise hub position", shortcut(KeyCode.P), simulation::optimiseHub),
@@ -95,7 +109,7 @@ final class AppMenuBar {
 
         Menu help = new Menu("Help", null, item("About Smart Home Simulator", null, () -> about(stage)));
 
-        return new MenuBar(file, edit, view, simulationMenu, help);
+        return new MenuBar(file, edit, view, canvas, simulationMenu, help);
     }
 
     private static void deleteSelection(SimulatorModel model, UiState state) {

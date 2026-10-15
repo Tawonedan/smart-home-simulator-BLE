@@ -48,7 +48,7 @@ final class HeatmapService {
             protected HeatmapResult call() {
                 Task<HeatmapResult> self = this;
                 return PropagationEngine.computeHeatmap(snapshot.environment(), snapshot.sensors(),
-                        SimulatorModel.PLAN_WIDTH_METERS, SimulatorModel.PLAN_HEIGHT_METERS, snapshot.settings(),
+                        snapshot.widthMeters(), snapshot.heightMeters(), snapshot.settings(),
                         new ComputationMonitor() {
                             @Override
                             public void progress(long done, long total) {

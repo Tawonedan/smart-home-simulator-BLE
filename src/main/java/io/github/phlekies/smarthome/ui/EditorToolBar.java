@@ -27,6 +27,11 @@ final class EditorToolBar {
 
     static ToolBar build(SimulatorModel model, UiState state, SimulationController simulation,
                          PlanViewport viewport) {
+        return build(model, state, simulation, viewport, null);
+    }
+
+    static ToolBar build(SimulatorModel model, UiState state, SimulationController simulation,
+                         PlanViewport viewport, javafx.stage.Stage stage) {
         ToggleGroup tools = new ToggleGroup();
         HBox toolButtons = new HBox();
         EditorTool[] values = EditorTool.values();

@@ -58,9 +58,30 @@ public final class SimulatorModel {
     private final List<Sensor> sensors = new ArrayList<>();
     private Hub hub;
     private FloorPlanTemplate activeTemplate;
+    private int planWidthMeters = PLAN_WIDTH_METERS;
+    private int planHeightMeters = PLAN_HEIGHT_METERS;
     private final Deque<List<Wall>> undoStack = new ArrayDeque<>();
     private final Deque<List<Wall>> redoStack = new ArrayDeque<>();
     private final List<Consumer<Change>> listeners = new CopyOnWriteArrayList<>();
+
+    public int planWidthMeters() {
+        return planWidthMeters;
+    }
+
+    public int planHeightMeters() {
+        return planHeightMeters;
+    }
+
+    public void setPlanDimensions(int widthMeters, int heightMeters) {
+        int w = Math.max(10, Math.min(500, widthMeters));
+        int h = Math.max(10, Math.min(500, heightMeters));
+        if (this.planWidthMeters == w && this.planHeightMeters == h) {
+            return;
+        }
+        this.planWidthMeters = w;
+        this.planHeightMeters = h;
+        fire(Change.WALLS);
+    }
 
     /** Creates a model with the default template, no devices and default settings. */
     public SimulatorModel() {
@@ -358,12 +379,12 @@ public final class SimulatorModel {
         return next;
     }
 
-    private static int clampX(int x) {
-        return Math.max(0, Math.min(PLAN_WIDTH_METERS, x));
+    private int clampX(int x) {
+        return Math.max(0, Math.min(planWidthMeters, x));
     }
 
-    private static int clampY(int y) {
-        return Math.max(0, Math.min(PLAN_HEIGHT_METERS, y));
+    private int clampY(int y) {
+        return Math.max(0, Math.min(planHeightMeters, y));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -426,7 +447,7 @@ public final class SimulatorModel {
 
     /** The building footprint (bounding box of the walls), or the whole plan when it is empty. */
     public Area footprint() {
-        return Area.footprintOf(walls(), new Area(0, 0, PLAN_WIDTH_METERS, PLAN_HEIGHT_METERS));
+        return Area.footprintOf(walls(), new Area(0, 0, planWidthMeters, planHeightMeters));
     }
 
     // ---------------------------------------------------------------------------------------
@@ -435,7 +456,8 @@ public final class SimulatorModel {
 
     /** Immutable copy of everything a background computation needs. */
     public Snapshot snapshot() {
-        return new Snapshot(environment.copy(), sensors.stream().map(Sensor::copy).toList(), heatmapSettings());
+        return new Snapshot(environment.copy(), sensors.stream().map(Sensor::copy).toList(), heatmapSettings(),
+                planWidthMeters, planHeightMeters);
     }
 
     /** Heatmap cells are isotropic probes aligned with the hub polarization (if any). */
@@ -488,6 +510,11 @@ public final class SimulatorModel {
     }
 
     /** Detached copies of the environment, the sensors and the heatmap settings. */
-    public record Snapshot(Environment environment, List<Sensor> sensors, SimulationSettings settings) {
+    public record Snapshot(Environment environment, List<Sensor> sensors, SimulationSettings settings,
+                           int widthMeters, int heightMeters) {
+
+        public Snapshot(Environment environment, List<Sensor> sensors, SimulationSettings settings) {
+            this(environment, sensors, settings, PLAN_WIDTH_METERS, PLAN_HEIGHT_METERS);
+        }
     }
 }

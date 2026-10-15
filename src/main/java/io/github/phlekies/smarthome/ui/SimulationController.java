@@ -240,7 +240,7 @@ final class SimulationController {
                     defaults.powerFloorDbm(), defaults.hubCaptureRadiusMeters(), defaults.maxSegments());
         }
         RayTraceResult result = RayTracer.trace(model.environment(), sources, model.hub().orElse(null),
-                SimulatorModel.PLAN_WIDTH_METERS, SimulatorModel.PLAN_HEIGHT_METERS, settings);
+                model.planWidthMeters(), model.planHeightMeters(), settings);
         hubHitCount = 0;
         state.status.set(String.format(Locale.US, "Tracing %d ray segments from %s%s.", result.segments().size(),
                 sources.size() == 1 ? sources.getFirst().getName() : "every sensor (select one to trace it alone)",

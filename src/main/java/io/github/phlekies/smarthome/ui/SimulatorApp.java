@@ -66,7 +66,7 @@ public final class SimulatorApp extends Application {
 
         BorderPane root = new BorderPane();
         root.setTop(new VBox(AppMenuBar.build(model, state, projects, simulation, editor, viewport, stage),
-                EditorToolBar.build(model, state, simulation, viewport)));
+                EditorToolBar.build(model, state, simulation, viewport, stage)));
         root.setCenter(viewport);
         root.setRight(ControlPanel.build(model, state, editor, simulation, projects));
         root.setBottom(statusBar(model, state, heatmaps, simulation));

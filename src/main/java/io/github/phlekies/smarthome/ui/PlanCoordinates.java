@@ -7,14 +7,39 @@ final class PlanCoordinates {
 
     static final int MARGIN_PX = 36;
     static final int PIXELS_PER_METER = 22;
-    static final int WIDTH_METERS = SimulatorModel.PLAN_WIDTH_METERS;
-    static final int HEIGHT_METERS = SimulatorModel.PLAN_HEIGHT_METERS;
-    static final double PLAN_WIDTH_PX = WIDTH_METERS * PIXELS_PER_METER;
-    static final double PLAN_HEIGHT_PX = HEIGHT_METERS * PIXELS_PER_METER;
-    static final double VIEW_WIDTH_PX = PLAN_WIDTH_PX + 2 * MARGIN_PX;
-    static final double VIEW_HEIGHT_PX = PLAN_HEIGHT_PX + 2 * MARGIN_PX;
+    private static int widthMeters = SimulatorModel.PLAN_WIDTH_METERS;
+    private static int heightMeters = SimulatorModel.PLAN_HEIGHT_METERS;
 
     private PlanCoordinates() {
+    }
+
+    static int widthMeters() {
+        return widthMeters;
+    }
+
+    static int heightMeters() {
+        return heightMeters;
+    }
+
+    static double planWidthPx() {
+        return widthMeters * PIXELS_PER_METER;
+    }
+
+    static double planHeightPx() {
+        return heightMeters * PIXELS_PER_METER;
+    }
+
+    static double viewWidthPx() {
+        return planWidthPx() + 2 * MARGIN_PX;
+    }
+
+    static double viewHeightPx() {
+        return planHeightPx() + 2 * MARGIN_PX;
+    }
+
+    static void setDimensions(int w, int h) {
+        widthMeters = Math.max(10, Math.min(500, w));
+        heightMeters = Math.max(10, Math.min(500, h));
     }
 
     static double toPixelX(double meters) {
@@ -22,7 +47,7 @@ final class PlanCoordinates {
     }
 
     static double toPixelY(double meters) {
-        return MARGIN_PX + (HEIGHT_METERS - meters) * PIXELS_PER_METER;
+        return MARGIN_PX + (heightMeters - meters) * PIXELS_PER_METER;
     }
 
     static double toMetersX(double pixelX) {
@@ -30,12 +55,12 @@ final class PlanCoordinates {
     }
 
     static double toMetersY(double pixelY) {
-        return HEIGHT_METERS - (pixelY - MARGIN_PX) / PIXELS_PER_METER;
+        return heightMeters - (pixelY - MARGIN_PX) / PIXELS_PER_METER;
     }
 
     static boolean isInsidePlan(double pixelX, double pixelY) {
         double x = toMetersX(pixelX);
         double y = toMetersY(pixelY);
-        return x >= 0.0 && y >= 0.0 && x <= WIDTH_METERS && y <= HEIGHT_METERS;
+        return x >= 0.0 && y >= 0.0 && x <= widthMeters && y <= heightMeters;
     }
 }

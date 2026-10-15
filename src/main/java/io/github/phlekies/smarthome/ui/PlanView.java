@@ -1,12 +1,6 @@
 package io.github.phlekies.smarthome.ui;
 
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.HEIGHT_METERS;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.MARGIN_PX;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.PLAN_HEIGHT_PX;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.PLAN_WIDTH_PX;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.VIEW_HEIGHT_PX;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.VIEW_WIDTH_PX;
-import static io.github.phlekies.smarthome.ui.PlanCoordinates.WIDTH_METERS;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersX;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toMetersY;
 import static io.github.phlekies.smarthome.ui.PlanCoordinates.toPixelX;
@@ -66,11 +60,11 @@ final class PlanView extends Pane {
     private final SimulatorModel model;
     private final UiState state;
 
-    private final Canvas gridCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+    private final Canvas gridCanvas = new Canvas(PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
     private final ImageView heatmapView = new ImageView();
-    private final Canvas wallsCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
-    private final Canvas linksCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
-    private final Canvas raysCanvas = new Canvas(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+    private final Canvas wallsCanvas = new Canvas(PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
+    private final Canvas linksCanvas = new Canvas(PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
+    private final Canvas raysCanvas = new Canvas(PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
     private final Pane effectsLayer = new Pane();
     private final Group overlay = new Group();
     private final Group devicesLayer = new Group();
@@ -88,20 +82,11 @@ final class PlanView extends Pane {
         this.state = state;
 
         getStyleClass().add("plan-view");
-        setMinSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
-        setPrefSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
-        setMaxSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        updateSize();
 
-        heatmapView.setLayoutX(MARGIN_PX);
-        heatmapView.setLayoutY(MARGIN_PX);
-        heatmapView.setFitWidth(PLAN_WIDTH_PX);
-        heatmapView.setFitHeight(PLAN_HEIGHT_PX);
         heatmapView.setSmooth(true); // bilinear upscaling of the 1 px-per-metre image
         heatmapView.setOpacity(0.78);
         heatmapView.setVisible(false);
-
-        effectsLayer.setClip(new Rectangle(MARGIN_PX, MARGIN_PX, PLAN_WIDTH_PX, PLAN_HEIGHT_PX));
-        effectsLayer.setPrefSize(VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
 
         for (Node passive : new Node[] { gridCanvas, heatmapView, wallsCanvas, linksCanvas, raysCanvas, effectsLayer, overlay }) {
             passive.setMouseTransparent(true);
@@ -113,7 +98,55 @@ final class PlanView extends Pane {
         state.links.addListener((obs, old, links) -> redrawLinks());
         state.linksVisible.addListener((obs, old, visible) -> redrawLinks());
         state.darkTheme.addListener((obs, old, dark) -> applyPalette(PlanPalette.of(dark)));
+
+        model.addListener(change -> {
+            if (change == SimulatorModel.Change.WALLS) {
+                if (PlanCoordinates.widthMeters() != model.planWidthMeters()
+                        || PlanCoordinates.heightMeters() != model.planHeightMeters()) {
+                    PlanCoordinates.setDimensions(model.planWidthMeters(), model.planHeightMeters());
+                    updateSize();
+                } else {
+                    redrawWalls();
+                }
+            } else if (change == SimulatorModel.Change.DEVICES) {
+                redrawDevices();
+            }
+        });
+
         applyPalette(PlanPalette.of(state.darkTheme.get()));
+    }
+
+    void updateSize() {
+        double viewW = PlanCoordinates.viewWidthPx();
+        double viewH = PlanCoordinates.viewHeightPx();
+        double planW = PlanCoordinates.planWidthPx();
+        double planH = PlanCoordinates.planHeightPx();
+
+        setMinSize(viewW, viewH);
+        setPrefSize(viewW, viewH);
+        setMaxSize(viewW, viewH);
+
+        gridCanvas.setWidth(viewW);
+        gridCanvas.setHeight(viewH);
+        wallsCanvas.setWidth(viewW);
+        wallsCanvas.setHeight(viewH);
+        linksCanvas.setWidth(viewW);
+        linksCanvas.setHeight(viewH);
+        raysCanvas.setWidth(viewW);
+        raysCanvas.setHeight(viewH);
+
+        heatmapView.setLayoutX(MARGIN_PX);
+        heatmapView.setLayoutY(MARGIN_PX);
+        heatmapView.setFitWidth(planW);
+        heatmapView.setFitHeight(planH);
+
+        effectsLayer.setClip(new Rectangle(MARGIN_PX, MARGIN_PX, planW, planH));
+        effectsLayer.setPrefSize(viewW, viewH);
+
+        drawGrid();
+        redrawWalls();
+        redrawLinks();
+        redrawDevices();
     }
 
     Group overlay() {
@@ -142,7 +175,7 @@ final class PlanView extends Pane {
     }
 
     void clearRays() {
-        raysCanvas.getGraphicsContext2D().clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        raysCanvas.getGraphicsContext2D().clearRect(0, 0, PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
     }
 
     private void applyPalette(PlanPalette newPalette) {
@@ -159,44 +192,51 @@ final class PlanView extends Pane {
 
     private void drawGrid() {
         GraphicsContext g = gridCanvas.getGraphicsContext2D();
-        g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        double viewW = PlanCoordinates.viewWidthPx();
+        double viewH = PlanCoordinates.viewHeightPx();
+        double planW = PlanCoordinates.planWidthPx();
+        double planH = PlanCoordinates.planHeightPx();
+        int widthM = PlanCoordinates.widthMeters();
+        int heightM = PlanCoordinates.heightMeters();
+
+        g.clearRect(0, 0, viewW, viewH);
         g.setFill(palette.background());
-        g.fillRect(MARGIN_PX, MARGIN_PX, PLAN_WIDTH_PX, PLAN_HEIGHT_PX);
+        g.fillRect(MARGIN_PX, MARGIN_PX, planW, planH);
 
         g.setLineWidth(1.0);
-        for (int x = 0; x <= WIDTH_METERS; x++) {
+        for (int x = 0; x <= widthM; x++) {
             g.setStroke(x % 5 == 0 ? palette.gridLineMajor() : palette.gridLine());
             double px = Math.round(toPixelX(x)) + 0.5;
-            g.strokeLine(px, toPixelY(0), px, toPixelY(HEIGHT_METERS));
+            g.strokeLine(px, toPixelY(0), px, toPixelY(heightM));
         }
-        for (int y = 0; y <= HEIGHT_METERS; y++) {
+        for (int y = 0; y <= heightM; y++) {
             g.setStroke(y % 5 == 0 ? palette.gridLineMajor() : palette.gridLine());
             double py = Math.round(toPixelY(y)) + 0.5;
-            g.strokeLine(toPixelX(0), py, toPixelX(WIDTH_METERS), py);
+            g.strokeLine(toPixelX(0), py, toPixelX(widthM), py);
         }
 
         g.setFill(palette.axisLabel());
         g.setFont(Font.font(11));
         g.setTextBaseline(VPos.TOP);
         g.setTextAlign(TextAlignment.CENTER);
-        for (int x = 0; x <= WIDTH_METERS; x += 5) {
+        for (int x = 0; x <= widthM; x += 5) {
             g.fillText(Integer.toString(x), toPixelX(x), toPixelY(0) + 6);
         }
         g.setTextBaseline(VPos.CENTER);
         g.setTextAlign(TextAlignment.RIGHT);
-        for (int y = 0; y <= HEIGHT_METERS; y += 5) {
+        for (int y = 0; y <= heightM; y += 5) {
             g.fillText(Integer.toString(y), toPixelX(0) - 6, toPixelY(y));
         }
         g.setTextAlign(TextAlignment.LEFT);
         g.setTextBaseline(VPos.TOP);
-        g.fillText("x (m)", toPixelX(WIDTH_METERS) - 30, toPixelY(0) + 20);
+        g.fillText("x (m)", toPixelX(widthM) - 30, toPixelY(0) + 20);
         g.setTextBaseline(VPos.BOTTOM);
-        g.fillText("y (m)", toPixelX(0) - 30, toPixelY(HEIGHT_METERS) - 8);
+        g.fillText("y (m)", toPixelX(0) - 30, toPixelY(heightM) - 8);
     }
 
     void redrawWalls() {
         GraphicsContext g = wallsCanvas.getGraphicsContext2D();
-        g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        g.clearRect(0, 0, PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
         g.setLineCap(StrokeLineCap.ROUND);
         for (Wall wall : model.walls()) {
             g.setStroke(palette.materialColor(wall.getMaterial()));
@@ -208,7 +248,7 @@ final class PlanView extends Pane {
     /** Dashed line from every sensor to the hub: green if the hub can decode it, red otherwise. */
     private void redrawLinks() {
         GraphicsContext g = linksCanvas.getGraphicsContext2D();
-        g.clearRect(0, 0, VIEW_WIDTH_PX, VIEW_HEIGHT_PX);
+        g.clearRect(0, 0, PlanCoordinates.viewWidthPx(), PlanCoordinates.viewHeightPx());
         Hub hub = model.hub().orElse(null);
         List<LinkSummary> links = state.links.get();
         if (!state.linksVisible.get() || hub == null) {

@@ -33,6 +33,7 @@ final class Icons {
     static final Ikon ZOOM_IN = Material2MZ.ZOOM_IN;
     static final Ikon ZOOM_OUT = Material2MZ.ZOOM_OUT;
     static final Ikon FIT = Material2AL.FULLSCREEN;
+    static final Ikon CANVAS_SIZE = Material2AL.ASPECT_RATIO;
 
     private Icons() {
     }
